@@ -91,11 +91,11 @@ async function main() {
 await main();
 ```
 
-## **API Documentation**
+# **API Documentation**
 
 Here is the API documentation for the exported functions:
 
-# **getAndroidDeviceNameFromUserAgent**
+## **getAndroidDeviceNameFromUserAgent**
 
 ### Description
 
@@ -116,7 +116,7 @@ const deviceName = getAndroidDeviceNameFromUserAgent();
 console.log(deviceName); // e.g. "Samsung Galaxy S21"
 ```
 
-# **getBrowser**
+## **getBrowser**
 
 ### Description
 
@@ -137,7 +137,7 @@ const browser = getBrowser();
 console.log(browser); // e.g. "Chrome 90.0.4430.212"
 ```
 
-# **getDeviceModel**
+## **getDeviceModel**
 
 ### Description
 
@@ -155,7 +155,7 @@ getDeviceModel().then((deviceModel) => {
 });
 ```
 
-# **getDeviceType**
+## **getDeviceType**
 
 ### Description
 
@@ -189,7 +189,7 @@ const deviceName = getIosDeviceName();
 console.log(deviceName); // e.g. "iPhone 12 Pro"
 ```
 
-# **getLanguages**
+## **getLanguages**
 
 ### Description
 
@@ -206,7 +206,7 @@ const languages = getLanguages();
 console.log(languages); // e.g. ["en-us", "fr-fr"]
 ```
 
-# **getOS**
+## **getOS**
 
 ### Description
 
@@ -223,7 +223,7 @@ const os = getOS();
 console.log(os); // e.g. "Windows 10"
 ```
 
-# **getTimeZone**
+## **getTimeZone**
 
 ### Description
 
@@ -240,7 +240,7 @@ const timeZone = getTimeZone();
 console.log(timeZone); // e.g. "America/New_York"
 ```
 
-# **isIncognitoMode**
+## **isIncognitoMode**
 
 ### Description
 
@@ -258,7 +258,7 @@ isIncognitoMode().then((isIncognito) => {
 });
 ```
 
-# **isIPad**
+## **isIPad**
 
 ### Description
 
@@ -275,7 +275,7 @@ const isIPad = isIPad();
 console.log(isIPad); // e.g. true
 ```
 
-# **isIPhone**
+## **isIPhone**
 
 ### Description
 
@@ -292,7 +292,7 @@ const isIPhone = isIPhone();
 console.log(isIPhone); // e.g. true
 ```
 
-# **isMobile**
+## **isMobile**
 
 ### Description
 
@@ -309,7 +309,7 @@ const isMobile = isMobile();
 console.log(isMobile); // e.g. true
 ```
 
-# **isPointerDevice**
+## **isPointerDevice**
 
 ### Description
 
@@ -326,7 +326,7 @@ const isPointerDevice = isPointerDevice();
 console.log(isPointerDevice); // e.g. true
 ```
 
-# **isSensorDevice**
+## **isSensorDevice**
 
 ### Description
 
@@ -343,7 +343,7 @@ const isSensorDevice = isSensorDevice();
 console.log(isSensorDevice); // e.g. true
 ```
 
-# **isWebview**
+## **isWebview**
 
 ### Description
 
@@ -360,7 +360,7 @@ const isWebview = isWebview();
 console.log(isWebview); // e.g. true
 ```
 
-# **isWindows11**
+## **isWindows11**
 
 ### Description
 

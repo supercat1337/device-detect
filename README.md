@@ -324,10 +324,60 @@ Determines if the device is a pointer device with fine pointing capabilities.
 ```javascript
 const isPointerDevice = isPointerDevice();
 console.log(isPointerDevice); // e.g. true
-
-
-## **License**
-
-Queue is licensed under the MIT License.
-
 ```
+
+# **isSensorDevice**
+
+### Description
+
+Determines if the device is a sensor device.
+
+### Returns
+
+-   `boolean`: `true` if the device is a sensor device, `false` otherwise.
+
+### Example
+
+```javascript
+const isSensorDevice = isSensorDevice();
+console.log(isSensorDevice); // e.g. true
+```
+
+# **isWebview**
+
+### Description
+
+Checks if the browser is running in a webview.
+
+### Returns
+
+-   `boolean`: `true` if the browser is running in a webview, `false` otherwise.
+
+### Example
+
+```javascript
+const isWebview = isWebview();
+console.log(isWebview); // e.g. true
+```
+
+# **isWindows11**
+
+### Description
+
+Asynchronously checks if the operating system is Windows 11.
+
+### Returns
+
+-   `Promise<boolean>`: A promise that resolves to `true` if the operating system is Windows 11, `false` otherwise.
+
+### Example
+
+```javascript
+isWindows11().then((isWindows11) => {
+    console.log(isWindows11); // e.g. true
+});
+```
+
+## License
+
+MIT

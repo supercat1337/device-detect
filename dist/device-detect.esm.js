@@ -100,8 +100,6 @@ const iosDeviceMapping = new Map([
     // https://yesviz.com/iphones.php
     /*
     
-    ["320x568", "IPhone 5, SE 1st Gen,5C, 5S"],
-    ["375x667", "IPhone SE 2nd Gen, 6, 6S, 7, 8"],
     ["375x812", "IPhone X, XS, 11 Pro, 12 Mini, 13 Mini"],
     ["390x844", "IPhone 13, 13 Pro, 12, 12 Pro"],
     ["414x736", "IPhone 8+"],
@@ -111,7 +109,7 @@ const iosDeviceMapping = new Map([
     */
 
     ["414x896", "iPhone 11, 11 Pro Max, XR, XS Max"],
-    ["375x812", "iPhone 11 Pro, X"],
+    ["375x812", "IPhone X, XS, 11 Pro, 12 Mini, 13 Mini"],
     ["390x844", "iPhone 12, 12 Pro, 13, 13 Pro, 14"],
     ["360x780", "iPhone 12 mini, 13 mini"],
     ["428x926", "iPhone 12 Pro Max, 13 Pro Max, 14 Plus"],

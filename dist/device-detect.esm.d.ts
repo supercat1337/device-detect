@@ -11,6 +11,20 @@ export function getAndroidDeviceNameFromUserAgent(userAgent?: string): string;
  */
 export function getBrowser(userAgent?: string): string;
 /**
+ * Gets the language of the browser in a human-readable format.
+ *
+ * @returns {string} The browser language, or the ISO 639-1 language code if the language is not supported.
+ */
+export function getBrowserLanguage(): string;
+/**
+ * Returns the full name of a country given its ISO 3166-1 alpha-2 code.
+ *
+ * @param {string} two_letter_code - The ISO 3166-1 alpha-2 code of the country.
+ *
+ * @returns {string} The name of the country.
+ */
+export function getCountryByCode(two_letter_code: string): string;
+/**
  * Asynchronously determines the device model name.
  *
  * This function attempts to identify the device model by checking for iPad or iPhone first,
@@ -35,6 +49,14 @@ export function getDeviceType(): string;
  */
 export function getIosDeviceName(): string;
 /**
+ * Returns the name of a language given its ISO 639-1 code.
+ *
+ * @param {string} code - The ISO 639-1 code of the language.
+ *
+ * @returns {string} The name of the language corresponding to the given code, or undefined if the code is not found.
+ */
+export function getLanguageByCode(code: string): string;
+/**
  * Gets the languages supported by the browser.
  *
  * @returns {string[]} An object containing the default language and an array of supported languages.
@@ -43,9 +65,9 @@ export function getLanguages(): string[];
 /**
  * Gets the operating system and version.
  *
- * @returns {string}
+ * @returns {Promise<string>}
  */
-export function getOS(): string;
+export function getOS(userAgent?: string): Promise<string>;
 /**
  * Gets the user's current time zone.
  *
@@ -71,6 +93,12 @@ export function isIPhone(): boolean;
  */
 export function isIncognitoMode(): Promise<boolean>;
 /**
+ * Determines if the current device is a desktop Apple device (e.g. iMac, MacBook).
+ *
+ * @returns {boolean} True if the device is identified as a desktop Apple device, false otherwise.
+ */
+export function isMac(): boolean;
+/**
  * Checks if the browser is running on a mobile device.
  *
  * @returns {boolean} True if the browser is running on a mobile device, false otherwise.
@@ -93,7 +121,7 @@ export function isSensorDevice(): boolean;
  *
  * @returns {boolean} True if the browser is running in a webview, false otherwise.
  */
-export function isWebview(): boolean;
+export function isWebview(userAgent?: string): boolean;
 /**
  * Asynchronously checks if the operating system is Windows 11.
  *

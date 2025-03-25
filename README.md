@@ -45,6 +45,10 @@ Here are the features of this library:
 
 -   Supports ES6 modules (ESM) for easy integration with modern web applications
 
+## **Live Demo**
+
+Check out the [live demo](https://supercat1337.github.io/device-detect/example/index.html) to see `device-detect` in action!
+
 ## **Usage**
 
 ```javascript
@@ -58,6 +62,7 @@ import {
     getTimeZone,
     isIPad,
     isIPhone,
+    isMac,
     isIncognitoMode,
     isMobile,
     isPointerDevice,
@@ -76,7 +81,7 @@ async function main() {
     console.log("Device Model", await getDeviceModel());
     console.log("Ios Device Name", getIosDeviceName());
     console.log("Languages", JSON.stringify(getLanguages()));
-    console.log("OS", getOS());
+    console.log("OS", await getOS());
     console.log("Time Zone", getTimeZone());
     console.log("Incognito Mode", await isIncognitoMode());
     console.log("Mobile", isMobile());
@@ -86,6 +91,7 @@ async function main() {
     console.log("Windows 11", await isWindows11());
     console.log("IPad", isIPad());
     console.log("IPhone", isIPhone());
+    console.log("Mac", isMac());
 }
 
 await main();
@@ -108,13 +114,6 @@ Gets the device name from the user agent string.
 ### Returns
 
 -   `string`: The device name, or an empty string if it could not be determined.
-
-### Example
-
-```javascript
-const deviceName = getAndroidDeviceNameFromUserAgent();
-console.log(deviceName); // e.g. "Samsung Galaxy S21"
-```
 
 ## **getBrowser**
 
@@ -193,33 +192,33 @@ console.log(deviceName); // e.g. "iPhone 12 Pro"
 
 ### Description
 
-Gets the languages supported by the browser, in lowercase.
+Gets the languages supported by the browser.
 
 ### Returns
 
--   `string[]`: An array of languages supported by the browser, in lowercase. The default language is first in the array.
+-   `string[]`: Gets the languages supported by the browser.
 
 ### Example
 
 ```javascript
 const languages = getLanguages();
-console.log(languages); // e.g. ["en-us", "fr-fr"]
+console.log(languages); // e.g. ["English (United States of America)", "Russian (Russian Federation)"]
 ```
 
 ## **getOS**
 
 ### Description
 
-Gets the operating system and version.
+Async function that gets the operating system and version.
 
 ### Returns
 
--   `string`: The operating system and version.
+-   `Promise<string>`: The operating system and version.
 
 ### Example
 
 ```javascript
-const os = getOS();
+const os = await getOS();
 console.log(os); // e.g. "Windows 10"
 ```
 
@@ -258,6 +257,23 @@ isIncognitoMode().then((isIncognito) => {
 });
 ```
 
+## **isMac**
+
+### Description
+
+Determines if the current device is a Mac.
+
+### Returns
+
+-   `boolean`: `true` if the device is a Mac, `false` otherwise.
+
+### Example
+
+```javascript
+const isAppleDesktop = isMac();
+console.log(isAppleDesktop); // e.g. true
+```
+
 ## **isIPad**
 
 ### Description
@@ -271,8 +287,8 @@ Determines if the current device is an iPad.
 ### Example
 
 ```javascript
-const isIPad = isIPad();
-console.log(isIPad); // e.g. true
+const is_IPad = isIPad();
+console.log(is_IPad); // e.g. true
 ```
 
 ## **isIPhone**
@@ -288,8 +304,8 @@ Determines if the current device is an iPhone.
 ### Example
 
 ```javascript
-const isIPhone = isIPhone();
-console.log(isIPhone); // e.g. true
+const is_IPhone = isIPhone();
+console.log(is_IPhone); // e.g. true
 ```
 
 ## **isMobile**
@@ -322,8 +338,7 @@ Determines if the device is a pointer device with fine pointing capabilities.
 ### Example
 
 ```javascript
-const isPointerDevice = isPointerDevice();
-console.log(isPointerDevice); // e.g. true
+console.log(isPointerDevice()); // e.g. true
 ```
 
 ## **isSensorDevice**
@@ -339,8 +354,7 @@ Determines if the device is a sensor device.
 ### Example
 
 ```javascript
-const isSensorDevice = isSensorDevice();
-console.log(isSensorDevice); // e.g. true
+console.log(isSensorDevice()); // e.g. true
 ```
 
 ## **isWebview**
@@ -356,8 +370,7 @@ Checks if the browser is running in a webview.
 ### Example
 
 ```javascript
-const isWebview = isWebview();
-console.log(isWebview); // e.g. true
+console.log(isWebview()); // e.g. true
 ```
 
 ## **isWindows11**
@@ -373,9 +386,25 @@ Asynchronously checks if the operating system is Windows 11.
 ### Example
 
 ```javascript
-isWindows11().then((isWindows11) => {
-    console.log(isWindows11); // e.g. true
+isWindows11().then((isWin11) => {
+    console.log(isWin11); // e.g. true
 });
+```
+
+## **getBrowserLanguage**
+
+### Description
+
+Gets the language of the browser.
+
+### Returns
+
+-   `string`: Returns the language of the browser.
+
+### Example
+
+```javascript
+console.log(getBrowserLanguage()); // e.g. "English"
 ```
 
 ## License

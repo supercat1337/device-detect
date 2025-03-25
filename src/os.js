@@ -5,11 +5,10 @@ import { isIPad } from "./device.js";
 /**
  * Gets the operating system and version.
  *
- * @returns {string}
+ * @returns {Promise<string>}
  */
-export function getOS() {
+export async function getOS(userAgent = window.navigator.userAgent) {
     var os = "Unknown";
-    var userAgent = window.navigator.userAgent;
 
     /** @type {Array<{os: string, re: RegExp}>} */
     var operatingSystemRules = [
@@ -50,6 +49,15 @@ export function getOS() {
         if (match) {
             os = operatingSystemRules[i].os;
             break;
+        }
+    }
+
+    if (os == "Windows 10") {
+        let win11 = await isWindows11();
+        if (win11) {
+            return "Windows 11";
+        } else {
+            return "Windows 10";
         }
     }
 

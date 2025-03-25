@@ -64,7 +64,7 @@ export function isMobile() {
         return true;
     }
 
-    if (/uZard|Opera Mini/i.test(userAgent)) {
+    if (/uZard|Opera Mini|BlackBerry/i.test(userAgent)) {
         return true;
     }
 
@@ -174,6 +174,11 @@ export function getAndroidDeviceNameFromUserAgent(
  * @returns {string} The device name, or "" if it could not be determined.
  */
 export function getIosDeviceName() {
+    let userAgent = window.navigator.userAgent;
+    if (!/iphone|ipad|macintosh/i.test(userAgent)) {
+        return "";
+    }
+
     let screen = window.screen;
     const screenResolution = `${screen.width}x${screen.height}`;
     const device = iosDeviceMapping.get(screenResolution);
@@ -222,6 +227,24 @@ export function isIPad() {
     }
 
     return false;
+}
+
+/**
+ * Determines if the current device is a desktop Apple device (e.g. iMac, MacBook).
+ *
+ * @returns {boolean} True if the device is identified as a desktop Apple device, false otherwise.
+ */
+export function isMac() {
+    let userAgent = window.navigator.userAgent;
+    if (!/iphone|ipad|macintosh/i.test(userAgent)) {
+        return false;
+    }
+
+    if (isIPhone() || isIPad()) {
+        return false;
+    }
+
+    return true;
 }
 
 /**
@@ -278,6 +301,10 @@ export async function getDeviceModel() {
         } else {
             return device;
         }
+    }
+
+    if (isMac()) {
+        return "Mac";
     }
 
     let deviceName = await getDeviceModelA();

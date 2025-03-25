@@ -1,5 +1,8 @@
 // @ts-check
 
+import { iso3166_1 } from "./countries.js";
+import { iso639_1 } from "./languages.js";
+
 /**
  * Gets the user's current time zone.
  *
@@ -19,5 +22,40 @@ export function getTimeZone() {
  * @returns {string[]} An object containing the default language and an array of supported languages.
  */
 export function getLanguages() {
-    return window.navigator.languages.map((lang) => lang.toLowerCase()) || [];
+    let languages = {};
+
+    for (let i = 0; i < window.navigator.languages.length; i++) {
+        let langString = window.navigator.languages[i];
+        let parts = langString.split("-");
+        let langISO = parts[0];
+        let lang = iso639_1[langISO];
+
+        let key = lang ? lang : langISO;
+
+        if (!languages[key]) {
+            languages[key] = [];
+        }
+
+        if (parts.length > 1) {
+            for (let y = 1; y < parts.length; y++) {
+                let country = iso3166_1[parts[y]];
+                if (country) {
+                    languages[key].push(country);
+                }
+            }
+        } else {
+        }
+    }
+
+    let result = [];
+    for (let key in languages) {
+        if (languages[key].length > 0) {
+            let countries = languages[key].join(", ");
+            result.push(`${key} (${countries})`);
+        } else {
+            result.push(key);
+        }
+    }
+
+    return result;
 }

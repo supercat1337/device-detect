@@ -2,7 +2,7 @@
 
 import { detectIncognito } from "detectincognitojs/dist/detectIncognito.esm.js";
 //import { detectIncognito } from "detectincognitojs";
-
+import { iso639_1 } from "./languages.js";
 /**
  * Gets the browser name and version.
  *
@@ -132,7 +132,9 @@ export function getBrowser(userAgent = window.navigator.userAgent) {
  *
  * @returns {boolean} True if the browser is running in a webview, false otherwise.
  */
-export function isWebview() {
+export function isWebview(
+    userAgent = window.navigator.userAgent.toLowerCase()
+) {
     if (typeof window === undefined) {
         return false;
     }
@@ -141,7 +143,6 @@ export function isWebview() {
 
     // @ts-ignore
     const standalone = navigator.standalone;
-    const userAgent = navigator.userAgent.toLowerCase();
     const safari = /safari/.test(userAgent);
     const ios = /iphone|ipod|ipad|macintosh/.test(userAgent);
     const ios_ipad_webview = ios && !safari;
@@ -163,5 +164,20 @@ export async function isIncognitoMode() {
     } catch (error) {
         console.error("Error checking incognito mode:", error);
         return false;
+    }
+}
+
+/**
+ * Gets the language of the browser in a human-readable format.
+ *
+ * @returns {string} The browser language, or the ISO 639-1 language code if the language is not supported.
+ */
+export function getBrowserLanguage() {
+    let langISO = window.navigator.language;
+    let langName = iso639_1[langISO];
+    if (langName) {
+        return langName;
+    } else {
+        return langISO;
     }
 }

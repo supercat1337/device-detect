@@ -66,7 +66,7 @@ function isMobile() {
         return true;
     }
 
-    if (/uZard|Opera Mini/i.test(userAgent)) {
+    if (/uZard|Opera Mini|BlackBerry/i.test(userAgent)) {
         return true;
     }
 
@@ -176,6 +176,11 @@ function getAndroidDeviceNameFromUserAgent(
  * @returns {string} The device name, or "" if it could not be determined.
  */
 function getIosDeviceName() {
+    let userAgent = window.navigator.userAgent;
+    if (!/iphone|ipad|macintosh/i.test(userAgent)) {
+        return "";
+    }
+
     let screen = window.screen;
     const screenResolution = `${screen.width}x${screen.height}`;
     const device = iosDeviceMapping.get(screenResolution);
@@ -224,6 +229,24 @@ function isIPad() {
     }
 
     return false;
+}
+
+/**
+ * Determines if the current device is a desktop Apple device (e.g. iMac, MacBook).
+ *
+ * @returns {boolean} True if the device is identified as a desktop Apple device, false otherwise.
+ */
+function isMac() {
+    let userAgent = window.navigator.userAgent;
+    if (!/iphone|ipad|macintosh/i.test(userAgent)) {
+        return false;
+    }
+
+    if (isIPhone() || isIPad()) {
+        return false;
+    }
+
+    return true;
 }
 
 /**
@@ -282,6 +305,10 @@ async function getDeviceModel() {
         }
     }
 
+    if (isMac()) {
+        return "Mac";
+    }
+
     let deviceName = await getDeviceModelA();
     if (deviceName) {
         return deviceName;
@@ -311,11 +338,10 @@ async function getDeviceModel() {
 /**
  * Gets the operating system and version.
  *
- * @returns {string}
+ * @returns {Promise<string>}
  */
-function getOS() {
+async function getOS(userAgent = window.navigator.userAgent) {
     var os = "Unknown";
-    var userAgent = window.navigator.userAgent;
 
     /** @type {Array<{os: string, re: RegExp}>} */
     var operatingSystemRules = [
@@ -356,6 +382,15 @@ function getOS() {
         if (match) {
             os = operatingSystemRules[i].os;
             break;
+        }
+    }
+
+    if (os == "Windows 10") {
+        let win11 = await isWindows11();
+        if (win11) {
+            return "Windows 11";
+        } else {
+            return "Windows 10";
         }
     }
 
@@ -441,7 +476,474 @@ async function isWindows11() {
 
 // @ts-check
 
-//import { detectIncognito } from "detectincognitojs";
+
+// JSON.stringify(parseTable($0, null, "  "))
+
+const iso3166_1 = {
+    AE: "United Arab Emirates",
+    AF: "Afghanistan",
+    AG: "Antigua and Barbuda",
+    AI: "Anguilla",
+    AL: "Albania",
+    AM: "Armenia",
+    AO: "Angola",
+    AQ: "Antarctica",
+    AR: "Argentina",
+    AS: "American Samoa",
+    AT: "Austria",
+    AU: "Australia",
+    AW: "Aruba",
+    AX: "Åland Islands",
+    AZ: "Azerbaijan",
+    BA: "Bosnia and Herzegovina",
+    BB: "Barbados",
+    BD: "Bangladesh",
+    BE: "Belgium",
+    BF: "Burkina Faso",
+    BG: "Bulgaria",
+    BH: "Bahrain",
+    BI: "Burundi",
+    BJ: "Benin",
+    BL: "Saint Barthélemy",
+    BM: "Bermuda",
+    BN: "Brunei Darussalam",
+    BO: "Bolivia, Plurinational State of",
+    BQ: "Bonaire, Sint Eustatius and Saba",
+    BR: "Brazil",
+    BS: "Bahamas",
+    BT: "Bhutan",
+    BV: "Bouvet Island",
+    BW: "Botswana",
+    BY: "Belarus",
+    BZ: "Belize",
+    CA: "Canada",
+    CC: "Cocos (Keeling) Islands",
+    CD: "Congo, Democratic Republic of the",
+    CF: "Central African Republic",
+    CG: "Congo",
+    CH: "Switzerland",
+    CI: "Côte d'Ivoire",
+    CK: "Cook Islands",
+    CL: "Chile",
+    CM: "Cameroon",
+    CN: "China",
+    CO: "Colombia",
+    CR: "Costa Rica",
+    CU: "Cuba",
+    CV: "Cabo Verde",
+    CW: "Curaçao",
+    CX: "Christmas Island",
+    CY: "Cyprus",
+    CZ: "Czechia",
+    DE: "Germany",
+    DJ: "Djibouti",
+    DK: "Denmark",
+    DM: "Dominica",
+    DO: "Dominican Republic",
+    DZ: "Algeria",
+    EC: "Ecuador",
+    EE: "Estonia",
+    EG: "Egypt",
+    EH: "Western Sahara",
+    ER: "Eritrea",
+    ES: "Spain",
+    ET: "Ethiopia",
+    FI: "Finland",
+    FJ: "Fiji",
+    FK: "Falkland Islands (Malvinas)",
+    FM: "Micronesia, Federated States of",
+    FO: "Faroe Islands",
+    FR: "France",
+    GA: "Gabon",
+    GB: "United Kingdom of Great Britain and Northern Ireland",
+    GD: "Grenada",
+    GE: "Georgia",
+    GF: "French Guiana",
+    GG: "Guernsey",
+    GH: "Ghana",
+    GI: "Gibraltar",
+    GL: "Greenland",
+    GM: "Gambia",
+    GN: "Guinea",
+    GP: "Guadeloupe",
+    GQ: "Equatorial Guinea",
+    GR: "Greece",
+    GS: "South Georgia and the South Sandwich Islands",
+    GT: "Guatemala",
+    GU: "Guam",
+    GW: "Guinea-Bissau",
+    GY: "Guyana",
+    HK: "Hong Kong",
+    HM: "Heard Island and McDonald Islands",
+    HN: "Honduras",
+    HR: "Croatia",
+    HT: "Haiti",
+    HU: "Hungary",
+    ID: "Indonesia",
+    IE: "Ireland",
+    IL: "Israel",
+    IM: "Isle of Man",
+    IN: "India",
+    IO: "British Indian Ocean Territory",
+    IQ: "Iraq",
+    IR: "Iran, Islamic Republic of",
+    IS: "Iceland",
+    IT: "Italy",
+    JE: "Jersey",
+    JM: "Jamaica",
+    JO: "Jordan",
+    JP: "Japan",
+    KE: "Kenya",
+    KG: "Kyrgyzstan",
+    KH: "Cambodia",
+    KI: "Kiribati",
+    KM: "Comoros",
+    KN: "Saint Kitts and Nevis",
+    KP: "Korea, Democratic People's Republic of",
+    KR: "Korea, Republic of",
+    KW: "Kuwait",
+    KY: "Cayman Islands",
+    KZ: "Kazakhstan",
+    LA: "Lao People's Democratic Republic",
+    LB: "Lebanon",
+    LC: "Saint Lucia",
+    LI: "Liechtenstein",
+    LK: "Sri Lanka",
+    LR: "Liberia",
+    LS: "Lesotho",
+    LT: "Lithuania",
+    LU: "Luxembourg",
+    LV: "Latvia",
+    LY: "Libya",
+    MA: "Morocco",
+    MC: "Monaco",
+    MD: "Moldova, Republic of",
+    ME: "Montenegro",
+    MF: "Saint Martin (French part)",
+    MG: "Madagascar",
+    MH: "Marshall Islands",
+    MK: "North Macedonia",
+    ML: "Mali",
+    MM: "Myanmar",
+    MN: "Mongolia",
+    MO: "Macao",
+    MP: "Northern Mariana Islands",
+    MQ: "Martinique",
+    MR: "Mauritania",
+    MS: "Montserrat",
+    MT: "Malta",
+    MU: "Mauritius",
+    MV: "Maldives",
+    MW: "Malawi",
+    MX: "Mexico",
+    MY: "Malaysia",
+    MZ: "Mozambique",
+    NA: "Namibia",
+    NC: "New Caledonia",
+    NE: "Niger",
+    NF: "Norfolk Island",
+    NG: "Nigeria",
+    NI: "Nicaragua",
+    NL: "Netherlands, Kingdom of the",
+    NO: "Norway",
+    NP: "Nepal",
+    NR: "Nauru",
+    NU: "Niue",
+    NZ: "New Zealand",
+    OM: "Oman",
+    PA: "Panama",
+    PE: "Peru",
+    PF: "French Polynesia",
+    PG: "Papua New Guinea",
+    PH: "Philippines",
+    PK: "Pakistan",
+    PL: "Poland",
+    PM: "Saint Pierre and Miquelon",
+    PN: "Pitcairn",
+    PR: "Puerto Rico",
+    PS: "Palestine, State of",
+    PT: "Portugal",
+    PW: "Palau",
+    PY: "Paraguay",
+    QA: "Qatar",
+    RE: "Réunion",
+    RO: "Romania",
+    RS: "Serbia",
+    RU: "Russian Federation",
+    RW: "Rwanda",
+    SA: "Saudi Arabia",
+    SB: "Solomon Islands",
+    SC: "Seychelles",
+    SD: "Sudan",
+    SE: "Sweden",
+    SG: "Singapore",
+    SH: "Saint Helena, Ascension and Tristan da Cunha",
+    SI: "Slovenia",
+    SJ: "Svalbard and Jan Mayen",
+    SK: "Slovakia",
+    SL: "Sierra Leone",
+    SM: "San Marino",
+    SN: "Senegal",
+    SO: "Somalia",
+    SR: "Suriname",
+    SS: "South Sudan",
+    ST: "Sao Tome and Principe",
+    SV: "El Salvador",
+    SX: "Sint Maarten (Dutch part)",
+    SY: "Syrian Arab Republic",
+    SZ: "Eswatini",
+    TC: "Turks and Caicos Islands",
+    TD: "Chad",
+    TF: "French Southern Territories",
+    TG: "Togo",
+    TH: "Thailand",
+    TJ: "Tajikistan",
+    TK: "Tokelau",
+    TL: "Timor-Leste",
+    TM: "Turkmenistan",
+    TN: "Tunisia",
+    TO: "Tonga",
+    TR: "Türkiye",
+    TT: "Trinidad and Tobago",
+    TV: "Tuvalu",
+    TW: "Taiwan, Province of China[note 1]",
+    TZ: "Tanzania, United Republic of",
+    UA: "Ukraine",
+    UG: "Uganda",
+    UM: "United States Minor Outlying Islands",
+    US: "United States of America",
+    UY: "Uruguay",
+    UZ: "Uzbekistan",
+    VA: "Holy See",
+    VC: "Saint Vincent and the Grenadines",
+    VE: "Venezuela, Bolivarian Republic of",
+    VG: "Virgin Islands (British)",
+    VI: "Virgin Islands (U.S.)",
+    VN: "Viet Nam",
+    VU: "Vanuatu",
+    WF: "Wallis and Futuna",
+    WS: "Samoa",
+    YE: "Yemen",
+    YT: "Mayotte",
+    ZA: "South Africa",
+    ZM: "Zambia",
+    ZW: "Zimbabwe",
+};
+
+/**
+ * Returns the full name of a country given its ISO 3166-1 alpha-2 code.
+ *
+ * @param {string} two_letter_code - The ISO 3166-1 alpha-2 code of the country.
+ *
+ * @returns {string} The name of the country.
+ */
+function getCountryByCode(two_letter_code) {
+    return iso3166_1[two_letter_code] || two_letter_code;
+}
+
+// @ts-check
+
+
+// JSON.stringify(parseTable($0, null, "  "))
+
+const iso639_1 = {
+    ab: "Abkhazian",
+    aa: "Afar",
+    af: "Afrikaans",
+    ak: "Akan",
+    sq: "Albanian",
+    am: "Amharic",
+    ar: "Arabic",
+    an: "Aragonese",
+    hy: "Armenian",
+    as: "Assamese",
+    av: "Avaric",
+    ae: "Avestan",
+    ay: "Aymara",
+    az: "Azerbaijani",
+    bm: "Bambara",
+    ba: "Bashkir",
+    eu: "Basque",
+    be: "Belarusian",
+    bn: "Bengali",
+    bi: "Bislama",
+    nb: "Norwegian Bokmål",
+    bs: "Bosnian",
+    br: "Breton",
+    bg: "Bulgarian",
+    my: "Burmese",
+    es: "Spanish",
+    ca: "Valencian",
+    km: "Central Khmer",
+    ch: "Chamorro",
+    ce: "Chechen",
+    ny: "Nyanja",
+    zh: "Chinese",
+    za: "Zhuang",
+    cu: "Old Slavonic",
+    cv: "Chuvash",
+    kw: "Cornish",
+    co: "Corsican",
+    cr: "Cree",
+    hr: "Croatian",
+    cs: "Czech",
+    da: "Danish",
+    dv: "Maldivian",
+    nl: "Flemish",
+    dz: "Dzongkha",
+    en: "English",
+    eo: "Esperanto",
+    et: "Estonian",
+    ee: "Ewe",
+    fo: "Faroese",
+    fj: "Fijian",
+    fi: "Finnish",
+    fr: "French",
+    ff: "Fulah",
+    gd: "Scottish Gaelic",
+    gl: "Galician",
+    lg: "Ganda",
+    ka: "Georgian",
+    de: "German",
+    ki: "Kikuyu",
+    el: "Greek, Modern (1453-)",
+    kl: "Kalaallisut",
+    gn: "Guarani",
+    gu: "Gujarati",
+    ht: "Haitian Creole",
+    ha: "Hausa",
+    he: "Hebrew",
+    hz: "Herero",
+    hi: "Hindi",
+    ho: "Hiri Motu",
+    hu: "Hungarian",
+    is: "Icelandic",
+    io: "Ido",
+    ig: "Igbo",
+    id: "Indonesian",
+    ia: "Interlingua (International Auxiliary Language Association)",
+    ie: "Occidental",
+    iu: "Inuktitut",
+    ik: "Inupiaq",
+    ga: "Irish",
+    it: "Italian",
+    ja: "Japanese",
+    jv: "Javanese",
+    kn: "Kannada",
+    kr: "Kanuri",
+    ks: "Kashmiri",
+    kk: "Kazakh",
+    rw: "Kinyarwanda",
+    ky: "Kyrgyz",
+    kv: "Komi",
+    kg: "Kongo",
+    ko: "Korean",
+    kj: "Kwanyama",
+    ku: "Kurdish",
+    lo: "Lao",
+    la: "Latin",
+    lv: "Latvian",
+    lb: "Luxembourgish",
+    li: "Limburgish",
+    ln: "Lingala",
+    lt: "Lithuanian",
+    lu: "Luba-Katanga",
+    mk: "Macedonian",
+    mg: "Malagasy",
+    ms: "Malay",
+    ml: "Malayalam",
+    mt: "Maltese",
+    gv: "Manx",
+    mi: "Maori",
+    mr: "Marathi",
+    mh: "Marshallese",
+    ro: "Romanian",
+    mn: "Mongolian",
+    na: "Nauru",
+    nv: "Navajo",
+    nd: "North Ndebele",
+    nr: "South Ndebele",
+    ng: "Ndonga",
+    ne: "Nepali",
+    se: "Northern Sami",
+    no: "Norwegian",
+    nn: "Nynorsk, Norwegian",
+    ii: "Sichuan Yi",
+    oc: "Occitan (post 1500)",
+    oj: "Ojibwa",
+    or: "Oriya",
+    om: "Oromo",
+    os: "Ossetic",
+    pi: "Pali",
+    pa: "Punjabi",
+    ps: "Pushto",
+    fa: "Persian",
+    pl: "Polish",
+    pt: "Portuguese",
+    qu: "Quechua",
+    rm: "Romansh",
+    rn: "Rundi",
+    ru: "Russian",
+    sm: "Samoan",
+    sg: "Sango",
+    sa: "Sanskrit",
+    sc: "Sardinian",
+    sr: "Serbian",
+    sn: "Shona",
+    sd: "Sindhi",
+    si: "Sinhalese",
+    sk: "Slovak",
+    sl: "Slovenian",
+    so: "Somali",
+    st: "Sotho, Southern",
+    su: "Sundanese",
+    sw: "Swahili",
+    ss: "Swati",
+    sv: "Swedish",
+    tl: "Tagalog",
+    ty: "Tahitian",
+    tg: "Tajik",
+    ta: "Tamil",
+    tt: "Tatar",
+    te: "Telugu",
+    th: "Thai",
+    bo: "Tibetan",
+    ti: "Tigrinya",
+    to: "Tonga (Tonga Islands)",
+    ts: "Tsonga",
+    tn: "Tswana",
+    tr: "Turkish",
+    tk: "Turkmen",
+    tw: "Twi",
+    ug: "Uyghur",
+    uk: "Ukrainian",
+    ur: "Urdu",
+    uz: "Uzbek",
+    ve: "Venda",
+    vi: "Vietnamese",
+    vo: "Volapük",
+    wa: "Walloon",
+    cy: "Welsh",
+    fy: "Western Frisian",
+    wo: "Wolof",
+    xh: "Xhosa",
+    yi: "Yiddish",
+    yo: "Yoruba",
+    zu: "Zulu",
+};
+
+/**
+ * Returns the name of a language given its ISO 639-1 code.
+ *
+ * @param {string} code - The ISO 639-1 code of the language.
+ *
+ * @returns {string} The name of the language corresponding to the given code, or undefined if the code is not found.
+ */
+function getLanguageByCode(code) {
+    return iso639_1[code];
+}
+
+// @ts-check
 
 /**
  * Gets the browser name and version.
@@ -572,7 +1074,9 @@ function getBrowser(userAgent = window.navigator.userAgent) {
  *
  * @returns {boolean} True if the browser is running in a webview, false otherwise.
  */
-function isWebview() {
+function isWebview(
+    userAgent = window.navigator.userAgent.toLowerCase()
+) {
     if (typeof window === undefined) {
         return false;
     }
@@ -581,7 +1085,6 @@ function isWebview() {
 
     // @ts-ignore
     const standalone = navigator.standalone;
-    const userAgent = navigator.userAgent.toLowerCase();
     const safari = /safari/.test(userAgent);
     const ios = /iphone|ipod|ipad|macintosh/.test(userAgent);
     const ios_ipad_webview = ios && !safari;
@@ -606,7 +1109,23 @@ async function isIncognitoMode() {
     }
 }
 
+/**
+ * Gets the language of the browser in a human-readable format.
+ *
+ * @returns {string} The browser language, or the ISO 639-1 language code if the language is not supported.
+ */
+function getBrowserLanguage() {
+    let langISO = window.navigator.language;
+    let langName = iso639_1[langISO];
+    if (langName) {
+        return langName;
+    } else {
+        return langISO;
+    }
+}
+
 // @ts-check
+
 
 /**
  * Gets the user's current time zone.
@@ -627,7 +1146,41 @@ function getTimeZone() {
  * @returns {string[]} An object containing the default language and an array of supported languages.
  */
 function getLanguages() {
-    return window.navigator.languages.map((lang) => lang.toLowerCase()) || [];
+    let languages = {};
+
+    for (let i = 0; i < window.navigator.languages.length; i++) {
+        let langString = window.navigator.languages[i];
+        let parts = langString.split("-");
+        let langISO = parts[0];
+        let lang = iso639_1[langISO];
+
+        let key = lang ? lang : langISO;
+
+        if (!languages[key]) {
+            languages[key] = [];
+        }
+
+        if (parts.length > 1) {
+            for (let y = 1; y < parts.length; y++) {
+                let country = iso3166_1[parts[y]];
+                if (country) {
+                    languages[key].push(country);
+                }
+            }
+        }
+    }
+
+    let result = [];
+    for (let key in languages) {
+        if (languages[key].length > 0) {
+            let countries = languages[key].join(", ");
+            result.push(`${key} (${countries})`);
+        } else {
+            result.push(key);
+        }
+    }
+
+    return result;
 }
 
-export { getAndroidDeviceNameFromUserAgent, getBrowser, getDeviceModel, getDeviceType, getIosDeviceName, getLanguages, getOS, getTimeZone, isIPad, isIPhone, isIncognitoMode, isMobile, isPointerDevice, isSensorDevice, isWebview, isWindows11 };
+export { getAndroidDeviceNameFromUserAgent, getBrowser, getBrowserLanguage, getCountryByCode, getDeviceModel, getDeviceType, getIosDeviceName, getLanguageByCode, getLanguages, getOS, getTimeZone, isIPad, isIPhone, isIncognitoMode, isMac, isMobile, isPointerDevice, isSensorDevice, isWebview, isWindows11 };

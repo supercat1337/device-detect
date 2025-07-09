@@ -3,6 +3,40 @@
 import { isIPad } from "./device.js";
 
 /**
+ * Asynchronously determines the Android version number.
+ *
+ * @returns {Promise<string|false>} A promise that resolves to the Android version number, or "Android" if the
+ * version number could not be determined.
+ */
+async function getAndroidOS() {
+    const userAgent = window.navigator.userAgent;
+    if (/android/i.test(userAgent) === false) {
+        return false;
+    }
+
+    // @ts-ignore
+    const userAgentData = window.navigator.userAgentData;
+
+    if (userAgentData) {
+        // Check if the platformVersion is available in high entropy values
+        let data = await userAgentData.getHighEntropyValues([
+            "platformVersion",
+        ]);
+
+        if (typeof data.platformVersion == "string") {
+            return "Android " + data.platformVersion;
+        }
+    }
+
+    let matchVersion = userAgent.match(/android\s([0-9\.]*)/i);
+    if (matchVersion) {
+        return "Android " + matchVersion[1];
+    }
+
+    return "Android";
+}
+
+/**
  * Gets the operating system and version.
  *
  * @returns {Promise<string>}
@@ -13,7 +47,7 @@ export async function getOS(userAgent = window.navigator.userAgent) {
     /** @type {Array<{os: string, re: RegExp}>} */
     var operatingSystemRules = [
         { os: "iOS", re: /iP(hone|od|ad)/ },
-        { os: "Android OS", re: /Android/ },
+        { os: "Android", re: /Android/ },
         { os: "BlackBerry OS", re: /BlackBerry|BB10/ },
         { os: "Windows Mobile", re: /IEMobile/ },
         { os: "Amazon OS", re: /Kindle/ },
@@ -104,13 +138,11 @@ export async function getOS(userAgent = window.navigator.userAgent) {
         return os;
     }
 
-    if (os == "Android OS") {
-        let matchVersion = userAgent.match(/android\s([0-9\.]*)/i);
-        if (matchVersion) {
-            os = os + " " + matchVersion[1];
+    if (os == "Android") {
+        let androidOS = await getAndroidOS();
+        if (androidOS) {
+            return androidOS;
         }
-
-        return os;
     }
 
     return os;

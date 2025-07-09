@@ -1,7 +1,7 @@
 // @ts-check
 
 import { iso3166_1 } from "./countries.js";
-import { iso639_1 } from "./languages.js";
+import { getLanguageByCode } from "./languages.js";
 
 /**
  * Gets the user's current time zone.
@@ -28,9 +28,8 @@ export function getLanguages() {
         let langString = window.navigator.languages[i];
         let parts = langString.split("-");
         let langISO = parts[0];
-        let lang = iso639_1[langISO];
 
-        let key = lang ? lang : langISO;
+        let key = getLanguageByCode(langISO);
 
         if (!languages[key]) {
             languages[key] = [];

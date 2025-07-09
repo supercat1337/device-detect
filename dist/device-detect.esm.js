@@ -336,6 +336,40 @@ async function getDeviceModel() {
 
 
 /**
+ * Asynchronously determines the Android version number.
+ *
+ * @returns {Promise<string|false>} A promise that resolves to the Android version number, or "Android" if the
+ * version number could not be determined.
+ */
+async function getAndroidOS() {
+    const userAgent = window.navigator.userAgent;
+    if (/android/i.test(userAgent) === false) {
+        return false;
+    }
+
+    // @ts-ignore
+    const userAgentData = window.navigator.userAgentData;
+
+    if (userAgentData) {
+        // Check if the platformVersion is available in high entropy values
+        let data = await userAgentData.getHighEntropyValues([
+            "platformVersion",
+        ]);
+
+        if (typeof data.platformVersion == "string") {
+            return "Android " + data.platformVersion;
+        }
+    }
+
+    let matchVersion = userAgent.match(/android\s([0-9\.]*)/i);
+    if (matchVersion) {
+        return "Android " + matchVersion[1];
+    }
+
+    return "Android";
+}
+
+/**
  * Gets the operating system and version.
  *
  * @returns {Promise<string>}
@@ -346,7 +380,7 @@ async function getOS(userAgent = window.navigator.userAgent) {
     /** @type {Array<{os: string, re: RegExp}>} */
     var operatingSystemRules = [
         { os: "iOS", re: /iP(hone|od|ad)/ },
-        { os: "Android OS", re: /Android/ },
+        { os: "Android", re: /Android/ },
         { os: "BlackBerry OS", re: /BlackBerry|BB10/ },
         { os: "Windows Mobile", re: /IEMobile/ },
         { os: "Amazon OS", re: /Kindle/ },
@@ -437,13 +471,11 @@ async function getOS(userAgent = window.navigator.userAgent) {
         return os;
     }
 
-    if (os == "Android OS") {
-        let matchVersion = userAgent.match(/android\s([0-9\.]*)/i);
-        if (matchVersion) {
-            os = os + " " + matchVersion[1];
+    if (os == "Android") {
+        let androidOS = await getAndroidOS();
+        if (androidOS) {
+            return androidOS;
         }
-
-        return os;
     }
 
     return os;
@@ -738,6 +770,13 @@ const iso3166_1 = {
  * @returns {string} The name of the country.
  */
 function getCountryByCode(two_letter_code) {
+    if (two_letter_code.length !== 2) {
+        throw new Error(
+            "Invalid ISO 3166-1 alpha-2 code. It must be exactly 2 characters long."
+        );
+    }
+
+    two_letter_code = two_letter_code.toUpperCase();
     return iso3166_1[two_letter_code] || two_letter_code;
 }
 
@@ -937,10 +976,10 @@ const iso639_1 = {
  *
  * @param {string} code - The ISO 639-1 code of the language.
  *
- * @returns {string} The name of the language corresponding to the given code, or undefined if the code is not found.
+ * @returns {string} The name of the language corresponding to the given code, or the code itself if the code is not found.
  */
 function getLanguageByCode(code) {
-    return iso639_1[code];
+    return iso639_1[code.toLowerCase()] || code;
 }
 
 // @ts-check
@@ -1152,9 +1191,8 @@ function getLanguages() {
         let langString = window.navigator.languages[i];
         let parts = langString.split("-");
         let langISO = parts[0];
-        let lang = iso639_1[langISO];
 
-        let key = lang ? lang : langISO;
+        let key = getLanguageByCode(langISO);
 
         if (!languages[key]) {
             languages[key] = [];

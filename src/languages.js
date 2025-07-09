@@ -226,10 +226,10 @@ const iso639_1 = {
  *
  * @param {string} code - The ISO 639-1 code of the language.
  *
- * @returns {string} The name of the language corresponding to the given code, or undefined if the code is not found.
+ * @returns {string} The name of the language corresponding to the given code, or the code itself if the code is not found.
  */
 function getLanguageByCode(code) {
-    return iso639_1[code];
+    return iso639_1[code] || code;
 }
 
 export { iso639_1, getLanguageByCode };

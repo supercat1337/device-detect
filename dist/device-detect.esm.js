@@ -356,7 +356,7 @@ async function getAndroidOS() {
             "platformVersion",
         ]);
 
-        if (typeof data.platformVersion == "string") {
+        if (data.platformVersion) {
             return "Android " + data.platformVersion;
         }
     }

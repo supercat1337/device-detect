@@ -229,7 +229,7 @@ const iso639_1 = {
  * @returns {string} The name of the language corresponding to the given code, or the code itself if the code is not found.
  */
 function getLanguageByCode(code) {
-    return iso639_1[code] || code;
+    return iso639_1[code.toLowerCase()] || code;
 }
 
 export { iso639_1, getLanguageByCode };

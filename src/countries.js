@@ -297,6 +297,13 @@ const iso3166_1 = {
  * @returns {string} The name of the country.
  */
 function getCountryByCode(two_letter_code) {
+    if (two_letter_code.length !== 2) {
+        throw new Error(
+            "Invalid ISO 3166-1 alpha-2 code. It must be exactly 2 characters long."
+        );
+    }
+
+    two_letter_code = two_letter_code.toUpperCase();
     return iso3166_1[two_letter_code] || two_letter_code;
 }
 

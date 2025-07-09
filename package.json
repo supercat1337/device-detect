@@ -1,6 +1,6 @@
 {
   "name": "@supercat1337/device-detect",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A JavaScript library to detect browser, device, operating system, language, and time zone from the user agent string.",
   "homepage": "https://github.com/supercat1337/device-detect",
   "repository": {

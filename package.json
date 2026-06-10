@@ -1,40 +1,56 @@
 {
-  "name": "@supercat1337/device-detect",
-  "version": "1.0.4",
-  "description": "A JavaScript library to detect browser, device, operating system, language, and time zone from the user agent string.",
-  "homepage": "https://github.com/supercat1337/device-detect",
-  "repository": {
-    "url": "https://github.com/supercat1337/device-detect"
-  },
-  "main": "index.js",
-  "type": "module",
-  "keywords": [
-    "user agent",
-    "browser detection",
-    "device detection",
-    "operating system detection",
-    "language detection",
-    "time zone detection"
-  ],
-  "scripts": {
-    "preinstall": "npm i -g esbuild && npm i -g rollup",
-    "test": "c8 ava",
-    "build": "npm run remove_type_files && npm run build_esm && npm run build_esm_min  &&  npm run create_types",
-    "build_esm": "rollup ./src/index.js --file ./dist/device-detect.esm.js --format es",
-    "build_esm_min": "esbuild --minify --bundle --platform=neutral --legal-comments=none ./dist/device-detect.esm.js --outfile=./dist/device-detect.esm.min.js",
-    "build_esm_bundle": "rollup ./src/index.js --file ./dist/device-detect.bundle.esm.js --format es -p ./node_modules/@rollup/plugin-node-resolve",
-    "build_esm_bundle_min": "esbuild --minify --bundle --platform=neutral --legal-comments=none ./src/index.js --outfile=./dist/device-detect.bundle.esm.min.js",
-    "create_types": "npx -p typescript tsc --project my.tsconfig.types.json",
-    "remove_type_files": "del /q *.d.ts *.d.ts.map && cd dist && del /s /q *.d.ts *.d.ts.map && cd .."
-  },
-  "moduleResolution": "node",
-  "author": "SuperCat",
-  "license": "MIT",
-  "devDependencies": {
-    "@rollup/plugin-node-resolve": "^15.2.3",
-    "@types/node": "^22.10.6"
-  },
-  "dependencies": {
-    "detectincognitojs": "^1.3.7"
-  }
+    "name": "@supercat1337/device-detect",
+    "version": "2.0.0",
+    "description": "A JavaScript library to detect browser, device, operating system, language, and time zone from the user agent string.",
+    "homepage": "https://github.com/supercat1337/device-detect",
+    "repository": {
+        "url": "https://github.com/supercat1337/device-detect"
+    },
+    "author": "Albert Bazaleev",
+    "license": "MIT",
+    "type": "module",
+    "main": "dist/device-detect.esm.js",
+    "types": "dist/types.d.ts",
+    "moduleResolution": "nodenext",
+    "exports": {
+        ".": {
+            "types": "./dist/types.d.ts",
+            "import": "./dist/device-detect.esm.js"
+        },
+        "./package.json": "./package.json"
+    },
+    "keywords": [
+        "user-agent",
+        "browser-detection",
+        "device-detection",
+        "operating-system-detection",
+        "language-detection",
+        "timezone-detection",
+        "mobile-detection",
+        "tablet-detection",
+        "webview-detection",
+        "client-hints",
+        "user-agent-parsing",
+        "platform-detection",
+        "environment-detection",
+        "ssr-friendly",
+        "fingerprinting"
+    ],
+    "scripts": {
+        "clean": "shx rm -rf ./dist && shx mkdir ./dist",
+        "build_esm": "rollup ./src/index.js --file ./dist/device-detect.esm.js --format es",
+        "gen_types": "npx tsc --project my.tsconfig.types.json",
+        "bundle_types": "node scripts/bundle-types.js",
+        "build": "npm run clean && npm run build_esm && npm run gen_types && npm run bundle_types && shx rm -rf dist/types-temp"
+    },
+    "files": [
+        "dist/types.d.ts",
+        "dist/device-detect.esm.js",
+        "README.md",
+        "LICENSE"
+    ],
+    "devDependencies": {
+        "@types/node": "^22.10.6",
+        "shx": "^0.4.0"
+    }
 }

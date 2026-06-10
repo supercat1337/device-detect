@@ -1,335 +1,53 @@
-import { detectIncognito } from 'detectincognitojs/dist/detectIncognito.esm.js';
-
 // @ts-check
 
 /**
- * Determines if the device is a sensor device with coarse pointing capabilities.
- *
- * @returns {boolean} True if the device is a sensor device with coarse pointing capabilities, false otherwise.
+ * Check if the code is executing in a client (browser) environment.
+ * @type {boolean}
  */
-function isSensorDevice() {
-    let hasTouchScreen = false;
-    if ("maxTouchPoints" in navigator) {
-        hasTouchScreen = navigator.maxTouchPoints > 0;
-    } else if ("msMaxTouchPoints" in navigator) {
-        // @ts-ignore
-        hasTouchScreen = navigator.msMaxTouchPoints > 0;
-    } else {
-        const mQ = matchMedia?.("(pointer:coarse)");
-        if (mQ?.media === "(pointer:coarse)") {
-            hasTouchScreen = !!mQ.matches;
-        } else if ("orientation" in window) {
-            hasTouchScreen = true; // deprecated, but good fallback
-        } else {
-            // Only as a last resort, fall back to user agent sniffing
-            // @ts-ignore
-            const userAgent = navigator.userAgent;
-            hasTouchScreen =
-                /\b(BlackBerry|webOS|iPhone|IEMobile|Mobile)\b/i.test(
-                    userAgent
-                ) || /\b(Android|Windows Phone|iPad|iPod)\b/i.test(userAgent);
-        }
-    }
-    return hasTouchScreen;
+const isClient = typeof window !== 'undefined';
+
+/**
+ * Safe access to the navigator object.
+ * @type {Navigator | null}
+ */
+const safeNavigator = isClient ? window.navigator : null;
+
+/**
+ * Safely retrieves the User Agent string.
+ * @returns {string} The user agent string or an empty string if not in browser.
+ */
+function getSafeUserAgent() {
+    return safeNavigator ? safeNavigator.userAgent : '';
 }
 
 /**
- * Determines if the device is a pointer device with fine pointing capabilities.
- *
- * @returns {boolean} True if the device is a pointer device with fine pointing capabilities, false otherwise.
+ * Safely retrieves the NavigatorUAData object (User-Agent Client Hints).
+ * @returns {import("./types.js").NavigatorUAData | null} The userAgentData object or null if not supported/available.
  */
-function isPointerDevice() {
-    try {
-        return matchMedia("(pointer:fine)").matches;
-    } catch (e) {
-        console.error(e);
-        return false;
-    }
+function getSafeUserAgentData() {
+    if (!safeNavigator) return null;
+
+    // @ts-ignore - userAgentData is not standard in all browser typings yet
+    return safeNavigator.userAgentData || null;
 }
 
 /**
- * Checks if the browser is running on a mobile device.
- *
- * @returns {boolean} True if the browser is running on a mobile device, false otherwise.
+ * Safely requests high-entropy values from User-Agent Client Hints.
+ * @param {string[]} hints - Array of hint names to request (e.g., ['model', 'platformVersion']).
+ * @returns {Promise<import("./types.js").UADataValues | null>} A promise that resolves to the values or null if unsupported.
  */
-function isMobile() {
-    // @ts-ignore
-    const userAgentData = window.navigator.userAgentData;
-
-    if (userAgentData && typeof userAgentData.mobile != "undefined") {
-        return userAgentData.mobile;
-    }
-
-    const userAgent = navigator.userAgent.toLowerCase();
-
-    if (/mobi|tablet/.test(userAgent)) {
-        return true;
-    }
-
-    if (/uZard|Opera Mini|BlackBerry/i.test(userAgent)) {
-        return true;
-    }
-
-    return false;
-}
-
-/**
- * Asynchronously gets the device model.
- *
- * @returns {Promise<string|null>} A promise that resolves to the device model if it could be determined, null otherwise.
- */
-async function getDeviceModelA() {
-    try {
-        // @ts-ignore
-        const userAgentData = window.navigator.userAgentData;
-        if (!userAgentData) return null;
-
-        const androidDeviceInfo = await userAgentData.getHighEntropyValues([
-            "model",
-        ]);
-        return androidDeviceInfo.model || null;
-    } catch (error) {
-        console.error("Error getting device model:", error);
+async function getHighEntropyValues(hints) {
+    const uaData = getSafeUserAgentData();
+    if (!uaData || typeof uaData.getHighEntropyValues !== 'function') {
         return null;
     }
-}
 
-// device maps
-const iosDeviceMapping = new Map([
-    ["320x480", "IPhone 4S, 4, 3GS, 3G, 1st gen"],
-    // https://yesviz.com/iphones.php
-    /*
-    
-    ["375x812", "IPhone X, XS, 11 Pro, 12 Mini, 13 Mini"],
-    ["390x844", "IPhone 13, 13 Pro, 12, 12 Pro"],
-    ["414x736", "IPhone 8+"],
-    ["414x896", "IPhone 11, XR, XS Max, 11 Pro Max"],
-    ["428x926", "IPhone 13 Pro Max, 12 Pro Max"],
-    ["476x847", "IPhone 7+, 6+, 6S+"],
-    */
-
-    ["414x896", "iPhone 11, 11 Pro Max, XR, XS Max"],
-    ["375x812", "IPhone X, XS, 11 Pro, 12 Mini, 13 Mini"],
-    ["390x844", "iPhone 12, 12 Pro, 13, 13 Pro, 14"],
-    ["360x780", "iPhone 12 mini, 13 mini"],
-    ["428x926", "iPhone 12 Pro Max, 13 Pro Max, 14 Plus"],
-    ["393x852", "iPhone 14 Pro, 15, 15 Pro, 16"],
-    ["430x932", "iPhone 14 Pro Max, 15 Plus, 15 Pro Max, 16 Plus"],
-    ["320x568", "iPhone 5, 5c, 5s, SE"],
-    ["375x667", "iPhone 6, 6s, 7, 8, SE (2020), SE (2022)"],
-    ["414x736", "iPhone 6s Plus, 7 Plus, 8 Plus"],
-    // https://yesviz.com/devices.php
-    ["402x874", "iPhone 16 Pro"],
-    ["440x956", "iPhone 16 Pro Max"],
-
-    /*
-    ["744x1133", "IPad Mini 6th Gen"],
-    [
-        "768x1024",
-        "IPad Mini (5th Gen), IPad (1-6th Gen), iPad Pro (1st Gen 9.7), Ipad Mini (1-4), IPad Air(1-2)  ",
-    ],
-    ["810x1080", "IPad 7-9th Gen"],
-    ["820x1180", "iPad Air (4th gen)"],
-    ["834x1194", "iPad Pro (3-5th Gen 11)"],
-    ["834x1112", "iPad Air (3rd gen), iPad Pro (2nd gen 10.5)"],
-    ["1024x1366", "iPad Pro (1-5th Gen 12.9)"],
-    */
-    [
-        "820x1180",
-        "iPad iPad Air (5th gen), iPad Air (4th gen), iPad (10th gen)",
-    ],
-    ["834x1112", "iPad iPad Air (3rd gen)"],
-    ["744x1133", "iPad iPad Mini (6th gen)"],
-    [
-        "768x1024",
-        "iPad iPad Mini (5th gen), iPad Mini 4, iPad (6th gen), iPad (5th gen), iPad III & IV gen, iPad Air 1 & 2, iPad Mini 2 & 3, iPad Mini",
-    ],
-    ["810x1080", "iPad iPad (9th gen), iPad (8th gen), iPad (7th gen)"],
-    ["1024x1366", "iPad iPad Pro"],
-]);
-
-/**
- * Gets the device name from the user agent string.
- * @returns {string} The device name, or "" if it could not be determined.
- */
-function getAndroidDeviceNameFromUserAgent(
-    userAgent = window.navigator.userAgent
-) {
-    if (userAgent.indexOf("Android") == -1) return "";
-
-    const androidUserAgentString = userAgent.slice(
-        window.navigator.userAgent.indexOf("Android")
-    );
-    const androidDeviceName = androidUserAgentString.slice(
-        androidUserAgentString.indexOf("; ") + 1,
-        androidUserAgentString.indexOf(")")
-    );
-    if (androidDeviceName) {
-        return androidDeviceName.trim().split(" ")[0];
+    try {
+        return await uaData.getHighEntropyValues(hints);
+    } catch (error) {
+        // Fallback if the promise is rejected or permission is denied
+        return null;
     }
-
-    return "";
-}
-
-/**
- * Gets the device name from the screen resolution.
- * @returns {string} The device name, or "" if it could not be determined.
- */
-function getIosDeviceName() {
-    let userAgent = window.navigator.userAgent;
-    if (!/iphone|ipad|macintosh/i.test(userAgent)) {
-        return "";
-    }
-
-    let screen = window.screen;
-    const screenResolution = `${screen.width}x${screen.height}`;
-    const device = iosDeviceMapping.get(screenResolution);
-    if (device) {
-        return device;
-    }
-    return "";
-}
-
-/**
- * Determines if the current device is an iPhone.
- *
- * @returns {boolean} True if the device is identified as an iPhone, false otherwise.
- */
-function isIPhone() {
-    let ua = window.navigator.userAgent.toLowerCase();
-    return ua.indexOf("iphone") > -1;
-}
-
-/**
- * Determines if the current device is an iPad.
- *
- * @returns {boolean} True if the device is identified as an iPad, false otherwise.
- */
-function isIPad() {
-    if (isIPhone()) {
-        return false;
-    }
-    let ua = window.navigator.userAgent.toLowerCase();
-    /** @type {boolean} */
-    let a = ua.indexOf("ipad") > -1;
-
-    if (a) {
-        return true;
-    }
-
-    /** @type {boolean} */
-    let b =
-        ua.indexOf("macintosh") > -1 &&
-        !!navigator.maxTouchPoints &&
-        navigator.maxTouchPoints > 2 &&
-        navigator.platform !== "iPhone";
-
-    if (b) {
-        return true;
-    }
-
-    return false;
-}
-
-/**
- * Determines if the current device is a desktop Apple device (e.g. iMac, MacBook).
- *
- * @returns {boolean} True if the device is identified as a desktop Apple device, false otherwise.
- */
-function isMac() {
-    let userAgent = window.navigator.userAgent;
-    if (!/iphone|ipad|macintosh/i.test(userAgent)) {
-        return false;
-    }
-
-    if (isIPhone() || isIPad()) {
-        return false;
-    }
-
-    return true;
-}
-
-/**
- * Gets the device type (Tablet, Mobile, Desktop) of the current device.
- *
- * @returns {string} The device type.
- */
-function getDeviceType() {
-    if (isIPad()) {
-        return "Tablet";
-    }
-
-    if (/tablet|ipad/i.test(window.navigator.userAgent)) return "Tablet";
-
-    if (isIPhone()) {
-        return "Mobile";
-    }
-
-    if (isMobile()) {
-        return "Mobile";
-    }
-
-    return "Desktop";
-}
-
-/**
- * Asynchronously determines the device model name.
- *
- * This function attempts to identify the device model by checking for iPad or iPhone first,
- * utilizing the iOS device name mappings. If the device is not an iPad or iPhone, it tries
- * to retrieve the device model using `getDeviceModelA`. If the device is not identified as a
- * mobile device, it returns "-". For Android devices, it extracts the device name from the
- * user agent string. If none of the checks are successful, it returns "-".
- *
- * @returns {Promise<string>} A promise that resolves to the device model name or "-" if it could
- * not be determined.
- */
-async function getDeviceModel() {
-    let device = "";
-
-    if (isIPad()) {
-        device = getIosDeviceName();
-        if (device == "") {
-            return "iPad";
-        } else {
-            return device;
-        }
-    }
-
-    if (isIPhone()) {
-        device = getIosDeviceName();
-        if (device == "") {
-            return "iPhone";
-        } else {
-            return device;
-        }
-    }
-
-    if (isMac()) {
-        return "Mac";
-    }
-
-    let deviceName = await getDeviceModelA();
-    if (deviceName) {
-        return deviceName;
-    }
-
-    // check if mobile device
-    const isMobileDevice = isMobile();
-
-    if (!isMobileDevice) {
-        return "-";
-    }
-
-    if (window.navigator.userAgent.includes("Android")) {
-        device = getAndroidDeviceNameFromUserAgent();
-
-        if (device) {
-            return device;
-        }
-    }
-
-    return "-";
 }
 
 // @ts-check
@@ -337,142 +55,117 @@ async function getDeviceModel() {
 
 /**
  * Asynchronously determines the Android version number.
- *
- * @returns {Promise<string|false>} A promise that resolves to the Android version number, or "Android" if the
- * version number could not be determined.
+ * * @param {string} userAgent The user agent string.
+ * @returns {Promise<string|false>} A promise that resolves to the Android version string, or false.
  */
-async function getAndroidOS() {
-    const userAgent = window.navigator.userAgent;
-    if (/android/i.test(userAgent) === false) {
+async function getAndroidOS(userAgent) {
+    if (!/android/i.test(userAgent)) {
         return false;
     }
 
-    // @ts-ignore
-    const userAgentData = window.navigator.userAgentData;
-
-    if (userAgentData) {
-        // Check if the platformVersion is available in high entropy values
-        let data = await userAgentData.getHighEntropyValues([
-            "platformVersion",
-        ]);
-
-        if (data.platformVersion) {
-            return "Android " + data.platformVersion;
-        }
+    // Check if the platformVersion is available in high entropy values
+    const data = await getHighEntropyValues(['platformVersion']);
+    if (data && data.platformVersion) {
+        return 'Android ' + data.platformVersion;
     }
 
-    let matchVersion = userAgent.match(/android\s([0-9\.]*)/i);
-    if (matchVersion) {
-        return "Android " + matchVersion[1];
+    const matchVersion = userAgent.match(/android\s([0-9\.]*)/i);
+    if (matchVersion && matchVersion[1]) {
+        return 'Android ' + matchVersion[1];
     }
 
-    return "Android";
+    return 'Android';
 }
 
 /**
- * Gets the operating system and version.
+ * Gets the operating system name and version.
  *
- * @returns {Promise<string>}
+ * @param {string} [userAgent=getSafeUserAgent()] The user agent string.
+ * @returns {Promise<string>} The detected operating system name and version.
  */
-async function getOS(userAgent = window.navigator.userAgent) {
-    var os = "Unknown";
+async function getOS(userAgent = getSafeUserAgent()) {
+    let os = 'Unknown';
 
-    /** @type {Array<{os: string, re: RegExp}>} */
-    var operatingSystemRules = [
-        { os: "iOS", re: /iP(hone|od|ad)/ },
-        { os: "Android", re: /Android/ },
-        { os: "BlackBerry OS", re: /BlackBerry|BB10/ },
-        { os: "Windows Mobile", re: /IEMobile/ },
-        { os: "Amazon OS", re: /Kindle/ },
-        { os: "Windows 3.11", re: /Win16/ },
-        { os: "Windows 95", re: /(Windows 95)|(Win95)|(Windows_95)/ },
-        { os: "Windows 98", re: /(Windows 98)|(Win98)/ },
-        { os: "Windows 2000", re: /(Windows NT 5.0)|(Windows 2000)/ },
-        { os: "Windows XP", re: /(Windows NT 5.1)|(Windows XP)/ },
-        { os: "Windows Server 2003", re: /(Windows NT 5.2)/ },
-        { os: "Windows Vista", re: /(Windows NT 6.0)/ },
-        { os: "Windows 7", re: /(Windows NT 6.1)/ },
-        { os: "Windows 8", re: /(Windows NT 6.2)/ },
-        { os: "Windows 8.1", re: /(Windows NT 6.3)/ },
-        { os: "Windows 10", re: /(Windows NT 10.0)/ },
-        { os: "Windows ME", re: /Windows ME/ },
-        {
-            os: "Windows CE",
-            re: /Windows CE|WinCE|Microsoft Pocket Internet Explorer/,
-        },
-        { os: "Open BSD", re: /OpenBSD/ },
-        { os: "Sun OS", re: /SunOS/ },
-        { os: "Chrome OS", re: /CrOS/ },
-        { os: "Linux", re: /(Linux|X11)\s*([^\s;]+)*/ },
-        { os: "Mac OS", re: /(Mac_PowerPC)|(Macintosh)/ },
-        { os: "QNX", re: /QNX/ },
-        { os: "BeOS", re: /BeOS/ },
-        { os: "OS/2", re: /OS\/2/ },
-        { os: "Aurora", re: /Aurora/ },
+    /** @type {Array<import('./types.js').OSRule>} */
+    const operatingSystemRules = [
+        { os: 'iOS', re: /iP(hone|od|ad)/ },
+        { os: 'Android', re: /Android/ },
+        { os: 'BlackBerry OS', re: /BlackBerry|BB10/ },
+        { os: 'Windows Mobile', re: /IEMobile/ },
+        { os: 'Amazon OS', re: /Kindle/ },
+        { os: 'Windows 3.11', re: /Win16/ },
+        { os: 'Windows 95', re: /(Windows 95)|(Win95)|(Windows_95)/ },
+        { os: 'Windows 98', re: /(Windows 98)|(Win98)/ },
+        { os: 'Windows 2000', re: /(Windows NT 5.0)|(Windows 2000)/ },
+        { os: 'Windows XP', re: /(Windows NT 5.1)|(Windows XP)/ },
+        { os: 'Windows Server 2003', re: /(Windows NT 5.2)/ },
+        { os: 'Windows Vista', re: /(Windows NT 6.0)/ },
+        { os: 'Windows 7', re: /(Windows NT 6.1)/ },
+        { os: 'Windows 8', re: /(Windows NT 6.2)/ },
+        { os: 'Windows 8.1', re: /(Windows NT 6.3)/ },
+        { os: 'Windows 10', re: /(Windows NT 10.0)/ },
+        { os: 'Windows ME', re: /Windows ME/ },
+        { os: 'Windows CE', re: /Windows CE|WinCE|Microsoft Pocket Internet Explorer/ },
+        { os: 'Open BSD', re: /OpenBSD/ },
+        { os: 'Sun OS', re: /SunOS/ },
+        { os: 'Chrome OS', re: /CrOS/ },
+        { os: 'Linux', re: /(Linux|X11)\s*([^\s;]+)*/ },
+        { os: 'Mac OS', re: /(Mac_PowerPC)|(Macintosh)/ },
+        { os: 'QNX', re: /QNX/ },
+        { os: 'BeOS', re: /BeOS/ },
+        { os: 'OS/2', re: /OS\/2/ },
+        { os: 'Aurora', re: /Aurora/ },
     ];
 
     for (let i = 0, count = operatingSystemRules.length; i < count; i++) {
-        const match = operatingSystemRules[i].re.exec(userAgent);
-        if (match) {
+        if (operatingSystemRules[i].re.test(userAgent)) {
             os = operatingSystemRules[i].os;
             break;
         }
     }
 
-    if (os == "Windows 10") {
-        let win11 = await isWindows11();
-        if (win11) {
-            return "Windows 11";
-        } else {
-            return "Windows 10";
-        }
+    if (os === 'Windows 10') {
+        const win11 = await isWindows11();
+        return win11 ? 'Windows 11' : 'Windows 10';
     }
 
-    if (os == "Aurora") {
-        let matchVersion = userAgent.match(/Aurora\/([^\s;]+)/i);
-        if (matchVersion) {
-            os = os + " " + matchVersion[1];
-        }
+    if (os === 'Aurora') {
+        const matchVersion = userAgent.match(/Aurora\/([^\s;]+)/i);
+        return matchVersion ? os + ' ' + matchVersion[1] : os;
+    }
 
+    if (os === 'iOS') {
+        // Updated regular expression to capture both 2-digit (17.5) and 3-digit (17.4.1) versions properly
+        const matchVersion = userAgent.match(/OS\s([0-9]+)[_.](([0-9]+)(?:[_.][0-9]+)?)/);
+        if (matchVersion) {
+            os += ' ' + matchVersion[1] + '.' + matchVersion[2].replace(/_/g, '.');
+        }
         return os;
     }
 
-    if (os == "iOS") {
-        let matchVersion = userAgent.match(/OS (\d+)_(\d+)_(\d+)/);
+    if (os === 'Mac OS') {
+        const matchVersion = userAgent.match(/Mac OS X\s([0-9\._]*)/i);
         if (matchVersion) {
-            os +=
-                " " +
-                matchVersion[1] +
-                "." +
-                matchVersion[2] +
-                "." +
-                matchVersion[3];
-        }
+            // Check if it is a modern iPad masking as a Mac (Touch capability check)
+            // This decouples os.js from device/apple.js and resolves the circular dependency
+            const isModernIPad = safeNavigator && safeNavigator.maxTouchPoints > 1;
 
-        return os;
-    }
-
-    if (os == "Mac OS") {
-        let matchVersion = userAgent.match(/Mac OS X\s([0-9\.]*)/i);
-        if (matchVersion) {
-            if (isIPad()) {
-                os = "iPad OS";
-                let matchSafariVersion = userAgent.match(/Version\/([^\s;]+)/);
+            if (isModernIPad) {
+                os = 'iPad OS';
+                const matchSafariVersion = userAgent.match(/Version\/([^\s;]+)/);
                 if (matchSafariVersion) {
-                    os = os + " " + matchSafariVersion[1];
+                    os = os + ' ' + matchSafariVersion[1];
                 }
-
                 return os;
             }
 
-            os = os + " " + matchVersion[1];
+            os = os + ' ' + matchVersion[1].replace(/_/g, '.');
         }
-
         return os;
     }
 
-    if (os == "Android") {
-        let androidOS = await getAndroidOS();
+    if (os === 'Android') {
+        const androidOS = await getAndroidOS(userAgent);
         if (androidOS) {
             return androidOS;
         }
@@ -487,738 +180,872 @@ async function getOS(userAgent = window.navigator.userAgent) {
  * @returns {Promise<boolean>} A promise that resolves to true if the operating system is Windows 11, false otherwise.
  */
 async function isWindows11() {
-    // @ts-ignore
-    const userAgentData = window.navigator.userAgentData;
-    if (!userAgentData) return false;
-
-    let data = await userAgentData.getHighEntropyValues(["platformVersion"]);
-    if (userAgentData.platform !== "Windows") {
+    const userAgentData = getSafeUserAgentData();
+    if (!userAgentData || userAgentData.platform !== 'Windows') {
         return false;
     }
 
-    if (typeof data.platformVersion != "string") return false;
-
-    const majorPlatformVersion = parseInt(data.platformVersion.split(".")[0]);
-    if (majorPlatformVersion >= 13) {
-        return true;
-    } else {
+    const data = await getHighEntropyValues(['platformVersion']);
+    if (!data || typeof data.platformVersion !== 'string') {
         return false;
     }
+
+    const majorPlatformVersion = parseInt(data.platformVersion.split('.')[0], 10);
+    // Windows 11 build versions return a major platform version of 13 or higher via Client Hints
+    return majorPlatformVersion >= 13;
 }
 
 // @ts-check
 
 
-// JSON.stringify(parseTable($0, null, "  "))
-
-const iso3166_1 = {
-    AE: "United Arab Emirates",
-    AF: "Afghanistan",
-    AG: "Antigua and Barbuda",
-    AI: "Anguilla",
-    AL: "Albania",
-    AM: "Armenia",
-    AO: "Angola",
-    AQ: "Antarctica",
-    AR: "Argentina",
-    AS: "American Samoa",
-    AT: "Austria",
-    AU: "Australia",
-    AW: "Aruba",
-    AX: "Åland Islands",
-    AZ: "Azerbaijan",
-    BA: "Bosnia and Herzegovina",
-    BB: "Barbados",
-    BD: "Bangladesh",
-    BE: "Belgium",
-    BF: "Burkina Faso",
-    BG: "Bulgaria",
-    BH: "Bahrain",
-    BI: "Burundi",
-    BJ: "Benin",
-    BL: "Saint Barthélemy",
-    BM: "Bermuda",
-    BN: "Brunei Darussalam",
-    BO: "Bolivia, Plurinational State of",
-    BQ: "Bonaire, Sint Eustatius and Saba",
-    BR: "Brazil",
-    BS: "Bahamas",
-    BT: "Bhutan",
-    BV: "Bouvet Island",
-    BW: "Botswana",
-    BY: "Belarus",
-    BZ: "Belize",
-    CA: "Canada",
-    CC: "Cocos (Keeling) Islands",
-    CD: "Congo, Democratic Republic of the",
-    CF: "Central African Republic",
-    CG: "Congo",
-    CH: "Switzerland",
-    CI: "Côte d'Ivoire",
-    CK: "Cook Islands",
-    CL: "Chile",
-    CM: "Cameroon",
-    CN: "China",
-    CO: "Colombia",
-    CR: "Costa Rica",
-    CU: "Cuba",
-    CV: "Cabo Verde",
-    CW: "Curaçao",
-    CX: "Christmas Island",
-    CY: "Cyprus",
-    CZ: "Czechia",
-    DE: "Germany",
-    DJ: "Djibouti",
-    DK: "Denmark",
-    DM: "Dominica",
-    DO: "Dominican Republic",
-    DZ: "Algeria",
-    EC: "Ecuador",
-    EE: "Estonia",
-    EG: "Egypt",
-    EH: "Western Sahara",
-    ER: "Eritrea",
-    ES: "Spain",
-    ET: "Ethiopia",
-    FI: "Finland",
-    FJ: "Fiji",
-    FK: "Falkland Islands (Malvinas)",
-    FM: "Micronesia, Federated States of",
-    FO: "Faroe Islands",
-    FR: "France",
-    GA: "Gabon",
-    GB: "United Kingdom of Great Britain and Northern Ireland",
-    GD: "Grenada",
-    GE: "Georgia",
-    GF: "French Guiana",
-    GG: "Guernsey",
-    GH: "Ghana",
-    GI: "Gibraltar",
-    GL: "Greenland",
-    GM: "Gambia",
-    GN: "Guinea",
-    GP: "Guadeloupe",
-    GQ: "Equatorial Guinea",
-    GR: "Greece",
-    GS: "South Georgia and the South Sandwich Islands",
-    GT: "Guatemala",
-    GU: "Guam",
-    GW: "Guinea-Bissau",
-    GY: "Guyana",
-    HK: "Hong Kong",
-    HM: "Heard Island and McDonald Islands",
-    HN: "Honduras",
-    HR: "Croatia",
-    HT: "Haiti",
-    HU: "Hungary",
-    ID: "Indonesia",
-    IE: "Ireland",
-    IL: "Israel",
-    IM: "Isle of Man",
-    IN: "India",
-    IO: "British Indian Ocean Territory",
-    IQ: "Iraq",
-    IR: "Iran, Islamic Republic of",
-    IS: "Iceland",
-    IT: "Italy",
-    JE: "Jersey",
-    JM: "Jamaica",
-    JO: "Jordan",
-    JP: "Japan",
-    KE: "Kenya",
-    KG: "Kyrgyzstan",
-    KH: "Cambodia",
-    KI: "Kiribati",
-    KM: "Comoros",
-    KN: "Saint Kitts and Nevis",
-    KP: "Korea, Democratic People's Republic of",
-    KR: "Korea, Republic of",
-    KW: "Kuwait",
-    KY: "Cayman Islands",
-    KZ: "Kazakhstan",
-    LA: "Lao People's Democratic Republic",
-    LB: "Lebanon",
-    LC: "Saint Lucia",
-    LI: "Liechtenstein",
-    LK: "Sri Lanka",
-    LR: "Liberia",
-    LS: "Lesotho",
-    LT: "Lithuania",
-    LU: "Luxembourg",
-    LV: "Latvia",
-    LY: "Libya",
-    MA: "Morocco",
-    MC: "Monaco",
-    MD: "Moldova, Republic of",
-    ME: "Montenegro",
-    MF: "Saint Martin (French part)",
-    MG: "Madagascar",
-    MH: "Marshall Islands",
-    MK: "North Macedonia",
-    ML: "Mali",
-    MM: "Myanmar",
-    MN: "Mongolia",
-    MO: "Macao",
-    MP: "Northern Mariana Islands",
-    MQ: "Martinique",
-    MR: "Mauritania",
-    MS: "Montserrat",
-    MT: "Malta",
-    MU: "Mauritius",
-    MV: "Maldives",
-    MW: "Malawi",
-    MX: "Mexico",
-    MY: "Malaysia",
-    MZ: "Mozambique",
-    NA: "Namibia",
-    NC: "New Caledonia",
-    NE: "Niger",
-    NF: "Norfolk Island",
-    NG: "Nigeria",
-    NI: "Nicaragua",
-    NL: "Netherlands, Kingdom of the",
-    NO: "Norway",
-    NP: "Nepal",
-    NR: "Nauru",
-    NU: "Niue",
-    NZ: "New Zealand",
-    OM: "Oman",
-    PA: "Panama",
-    PE: "Peru",
-    PF: "French Polynesia",
-    PG: "Papua New Guinea",
-    PH: "Philippines",
-    PK: "Pakistan",
-    PL: "Poland",
-    PM: "Saint Pierre and Miquelon",
-    PN: "Pitcairn",
-    PR: "Puerto Rico",
-    PS: "Palestine, State of",
-    PT: "Portugal",
-    PW: "Palau",
-    PY: "Paraguay",
-    QA: "Qatar",
-    RE: "Réunion",
-    RO: "Romania",
-    RS: "Serbia",
-    RU: "Russian Federation",
-    RW: "Rwanda",
-    SA: "Saudi Arabia",
-    SB: "Solomon Islands",
-    SC: "Seychelles",
-    SD: "Sudan",
-    SE: "Sweden",
-    SG: "Singapore",
-    SH: "Saint Helena, Ascension and Tristan da Cunha",
-    SI: "Slovenia",
-    SJ: "Svalbard and Jan Mayen",
-    SK: "Slovakia",
-    SL: "Sierra Leone",
-    SM: "San Marino",
-    SN: "Senegal",
-    SO: "Somalia",
-    SR: "Suriname",
-    SS: "South Sudan",
-    ST: "Sao Tome and Principe",
-    SV: "El Salvador",
-    SX: "Sint Maarten (Dutch part)",
-    SY: "Syrian Arab Republic",
-    SZ: "Eswatini",
-    TC: "Turks and Caicos Islands",
-    TD: "Chad",
-    TF: "French Southern Territories",
-    TG: "Togo",
-    TH: "Thailand",
-    TJ: "Tajikistan",
-    TK: "Tokelau",
-    TL: "Timor-Leste",
-    TM: "Turkmenistan",
-    TN: "Tunisia",
-    TO: "Tonga",
-    TR: "Türkiye",
-    TT: "Trinidad and Tobago",
-    TV: "Tuvalu",
-    TW: "Taiwan, Province of China[note 1]",
-    TZ: "Tanzania, United Republic of",
-    UA: "Ukraine",
-    UG: "Uganda",
-    UM: "United States Minor Outlying Islands",
-    US: "United States of America",
-    UY: "Uruguay",
-    UZ: "Uzbekistan",
-    VA: "Holy See",
-    VC: "Saint Vincent and the Grenadines",
-    VE: "Venezuela, Bolivarian Republic of",
-    VG: "Virgin Islands (British)",
-    VI: "Virgin Islands (U.S.)",
-    VN: "Viet Nam",
-    VU: "Vanuatu",
-    WF: "Wallis and Futuna",
-    WS: "Samoa",
-    YE: "Yemen",
-    YT: "Mayotte",
-    ZA: "South Africa",
-    ZM: "Zambia",
-    ZW: "Zimbabwe",
-};
+/**
+ * Modern and secure cache storage for heavy Intl.DisplayNames instances.
+ * Using Map prevents Prototype Pollution vulnerabilities.
+ * @type {Map<string, Intl.DisplayNames>}
+ */
+const displayNamesCache = new Map();
 
 /**
- * Returns the full name of a country given its ISO 3166-1 alpha-2 code.
+ * Safely retrieves the browser's primary language code for country resolution fallback.
  *
- * @param {string} two_letter_code - The ISO 3166-1 alpha-2 code of the country.
- *
- * @returns {string} The name of the country.
+ * @returns {string} The primary language tag (e.g., 'en-US') or 'en'.
  */
-function getCountryByCode(two_letter_code) {
-    if (two_letter_code.length !== 2) {
-        throw new Error(
-            "Invalid ISO 3166-1 alpha-2 code. It must be exactly 2 characters long."
-        );
-    }
-
-    two_letter_code = two_letter_code.toUpperCase();
-    return iso3166_1[two_letter_code] || two_letter_code;
+function getSafePrimaryLanguage$1() {
+    return isClient && safeNavigator ? safeNavigator.language : 'en';
 }
 
-// @ts-check
-
-
-// JSON.stringify(parseTable($0, null, "  "))
-
-const iso639_1 = {
-    ab: "Abkhazian",
-    aa: "Afar",
-    af: "Afrikaans",
-    ak: "Akan",
-    sq: "Albanian",
-    am: "Amharic",
-    ar: "Arabic",
-    an: "Aragonese",
-    hy: "Armenian",
-    as: "Assamese",
-    av: "Avaric",
-    ae: "Avestan",
-    ay: "Aymara",
-    az: "Azerbaijani",
-    bm: "Bambara",
-    ba: "Bashkir",
-    eu: "Basque",
-    be: "Belarusian",
-    bn: "Bengali",
-    bi: "Bislama",
-    nb: "Norwegian Bokmål",
-    bs: "Bosnian",
-    br: "Breton",
-    bg: "Bulgarian",
-    my: "Burmese",
-    es: "Spanish",
-    ca: "Valencian",
-    km: "Central Khmer",
-    ch: "Chamorro",
-    ce: "Chechen",
-    ny: "Nyanja",
-    zh: "Chinese",
-    za: "Zhuang",
-    cu: "Old Slavonic",
-    cv: "Chuvash",
-    kw: "Cornish",
-    co: "Corsican",
-    cr: "Cree",
-    hr: "Croatian",
-    cs: "Czech",
-    da: "Danish",
-    dv: "Maldivian",
-    nl: "Flemish",
-    dz: "Dzongkha",
-    en: "English",
-    eo: "Esperanto",
-    et: "Estonian",
-    ee: "Ewe",
-    fo: "Faroese",
-    fj: "Fijian",
-    fi: "Finnish",
-    fr: "French",
-    ff: "Fulah",
-    gd: "Scottish Gaelic",
-    gl: "Galician",
-    lg: "Ganda",
-    ka: "Georgian",
-    de: "German",
-    ki: "Kikuyu",
-    el: "Greek, Modern (1453-)",
-    kl: "Kalaallisut",
-    gn: "Guarani",
-    gu: "Gujarati",
-    ht: "Haitian Creole",
-    ha: "Hausa",
-    he: "Hebrew",
-    hz: "Herero",
-    hi: "Hindi",
-    ho: "Hiri Motu",
-    hu: "Hungarian",
-    is: "Icelandic",
-    io: "Ido",
-    ig: "Igbo",
-    id: "Indonesian",
-    ia: "Interlingua (International Auxiliary Language Association)",
-    ie: "Occidental",
-    iu: "Inuktitut",
-    ik: "Inupiaq",
-    ga: "Irish",
-    it: "Italian",
-    ja: "Japanese",
-    jv: "Javanese",
-    kn: "Kannada",
-    kr: "Kanuri",
-    ks: "Kashmiri",
-    kk: "Kazakh",
-    rw: "Kinyarwanda",
-    ky: "Kyrgyz",
-    kv: "Komi",
-    kg: "Kongo",
-    ko: "Korean",
-    kj: "Kwanyama",
-    ku: "Kurdish",
-    lo: "Lao",
-    la: "Latin",
-    lv: "Latvian",
-    lb: "Luxembourgish",
-    li: "Limburgish",
-    ln: "Lingala",
-    lt: "Lithuanian",
-    lu: "Luba-Katanga",
-    mk: "Macedonian",
-    mg: "Malagasy",
-    ms: "Malay",
-    ml: "Malayalam",
-    mt: "Maltese",
-    gv: "Manx",
-    mi: "Maori",
-    mr: "Marathi",
-    mh: "Marshallese",
-    ro: "Romanian",
-    mn: "Mongolian",
-    na: "Nauru",
-    nv: "Navajo",
-    nd: "North Ndebele",
-    nr: "South Ndebele",
-    ng: "Ndonga",
-    ne: "Nepali",
-    se: "Northern Sami",
-    no: "Norwegian",
-    nn: "Nynorsk, Norwegian",
-    ii: "Sichuan Yi",
-    oc: "Occitan (post 1500)",
-    oj: "Ojibwa",
-    or: "Oriya",
-    om: "Oromo",
-    os: "Ossetic",
-    pi: "Pali",
-    pa: "Punjabi",
-    ps: "Pushto",
-    fa: "Persian",
-    pl: "Polish",
-    pt: "Portuguese",
-    qu: "Quechua",
-    rm: "Romansh",
-    rn: "Rundi",
-    ru: "Russian",
-    sm: "Samoan",
-    sg: "Sango",
-    sa: "Sanskrit",
-    sc: "Sardinian",
-    sr: "Serbian",
-    sn: "Shona",
-    sd: "Sindhi",
-    si: "Sinhalese",
-    sk: "Slovak",
-    sl: "Slovenian",
-    so: "Somali",
-    st: "Sotho, Southern",
-    su: "Sundanese",
-    sw: "Swahili",
-    ss: "Swati",
-    sv: "Swedish",
-    tl: "Tagalog",
-    ty: "Tahitian",
-    tg: "Tajik",
-    ta: "Tamil",
-    tt: "Tatar",
-    te: "Telugu",
-    th: "Thai",
-    bo: "Tibetan",
-    ti: "Tigrinya",
-    to: "Tonga (Tonga Islands)",
-    ts: "Tsonga",
-    tn: "Tswana",
-    tr: "Turkish",
-    tk: "Turkmen",
-    tw: "Twi",
-    ug: "Uyghur",
-    uk: "Ukrainian",
-    ur: "Urdu",
-    uz: "Uzbek",
-    ve: "Venda",
-    vi: "Vietnamese",
-    vo: "Volapük",
-    wa: "Walloon",
-    cy: "Welsh",
-    fy: "Western Frisian",
-    wo: "Wolof",
-    xh: "Xhosa",
-    yi: "Yiddish",
-    yo: "Yoruba",
-    zu: "Zulu",
-};
-
 /**
- * Returns the name of a language given its ISO 639-1 code.
+ * Gets the human-readable country/region name derived from the user's current locale settings.
+ * Performance-optimized via a secure modern Map-based Memoization Cache.
  *
- * @param {string} code - The ISO 639-1 code of the language.
- *
- * @returns {string} The name of the language corresponding to the given code, or the code itself if the code is not found.
+ * @param {string} [displayLocale] The locale to use for translating the country name. Defaults to the client's language.
+ * @param {string} [targetLocale] Optional custom locale to extract the country from (crucial for SSR execution).
+ * @returns {string} The localized country name (e.g., "United States"), a generic fallback, or an empty string.
  */
-function getLanguageByCode(code) {
-    return iso639_1[code.toLowerCase()] || code;
-}
+function getCountryName(displayLocale, targetLocale) {
+    // 1. Resolve the source locale from which we want to extract the country code
+    const sourceLocale = targetLocale || getSafePrimaryLanguage$1();
+    if (!sourceLocale) return '';
 
-// @ts-check
-
-/**
- * Gets the browser name and version.
- *
- * @param {string} [userAgent=window.navigator.userAgent] The user agent string.
- * @returns {string} The browser name and version, or "Unknown" if it could not be determined.
- */
-function getBrowser(userAgent = window.navigator.userAgent) {
-    // see: https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Browser_detection_using_the_user_agent
-
-    let matchYandex = userAgent.match(/YaBrowser\/([^\s;]+)/i);
-    if (matchYandex) {
-        return "Yandex " + matchYandex[1];
+    // 2. Extract the ISO 3166-1 alpha-2 region code safely
+    let regionCode = '';
+    try {
+        const localeObj = new Intl.Locale(sourceLocale);
+        if (localeObj.region) {
+            regionCode = localeObj.region.toUpperCase();
+        }
+    } catch (e) {
+        // Fallback: A stricter regex that ensures we capture an isolated 2-letter
+        // country token separated by dashes/underscores, preventing partial matches.
+        const match = sourceLocale.match(/(?:[-_])([A-Za-z]{2})(?:\b|[-_]|$)/);
+        if (match && match[1]) {
+            regionCode = match[1].toUpperCase();
+        }
     }
 
-    let matchMessenger = userAgent.match(/Messenger\/([^\s;]+)/);
-    if (matchMessenger) {
-        return "Messenger " + matchMessenger[1];
+    // If no valid region identifier could be parsed, return 'Unknown' for clean analytical grouping
+    if (!regionCode) {
+        return 'Unknown';
     }
 
-    let matchFacebook = userAgent.match(/FBAN|FBAV/i);
-    if (matchFacebook) {
-        let appName = "Facebook";
-        let appNameMatch = userAgent.match(/FBAN\/([^\s;]+)/i);
-        if (appNameMatch) {
-            appName = "Facebook " + appNameMatch[1];
+    // 3. Resolve and validate the display locale used for translation formatting
+    let safeDisplayLocale = displayLocale || getSafePrimaryLanguage$1();
+    try {
+        const canonicalLocales = Intl.getCanonicalLocales(safeDisplayLocale);
+        if (canonicalLocales && canonicalLocales[0]) {
+            safeDisplayLocale = canonicalLocales[0];
+        }
+    } catch (e) {
+        safeDisplayLocale = getSafePrimaryLanguage$1();
+    }
+
+    // 4. Translate the region code using the secure Map Cache
+    try {
+        // If the formatter for this specific display locale doesn't exist yet, create and set it
+        if (!displayNamesCache.has(safeDisplayLocale)) {
+            displayNamesCache.set(
+                safeDisplayLocale,
+                new Intl.DisplayNames([safeDisplayLocale], { type: 'region', fallback: 'code' })
+            );
         }
 
-        let appVersion = "";
-        let appVersionMatch = userAgent.match(/FBAV\/([^\s;]+)/i);
+        const regionDisplay = displayNamesCache.get(safeDisplayLocale);
+        return regionDisplay ? regionDisplay.of(regionCode) || regionCode : regionCode;
+    } catch (error) {
+        console.warn(
+            'Intl.DisplayNames is not supported or failed in this environment. Returning raw region code.',
+            error
+        );
+        // Safely return the raw uppercase ISO code (e.g., "US") if the environment lacks full Intl support
+        return regionCode;
+    }
+}
+
+// @ts-check
+
+
+/**
+ * Asynchronously gets the browser name and version.
+ *
+ * @param {string} [userAgent=getSafeUserAgent()] The user agent string.
+ * @returns {Promise<string>} A promise that resolves to the browser name and version, or "Unknown".
+ */
+async function getBrowser(userAgent = getSafeUserAgent()) {
+    if (!userAgent) return 'Unknown';
+
+    // 1. Brave detection (requires async check because isBrave() returns a Promise)
+    if (safeNavigator && /** @type {any} */ (safeNavigator).brave) {
+        const braveNav = /** @type {import('./types.js').BraveNavigator} */ (
+            /** @type {any} */ (safeNavigator).brave
+        );
+        if (typeof braveNav.isBrave === 'function') {
+            try {
+                const isBrave = await braveNav.isBrave();
+                if (isBrave) {
+                    const matchChromeVersion = userAgent.match(/Chrome\/([^\s;]+)/i);
+                    return matchChromeVersion ? 'Brave ' + matchChromeVersion[1] : 'Brave';
+                }
+            } catch (e) {
+                // Fail silently and proceed to fallback UA detection
+            }
+        }
+    }
+
+    // see: https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Browser_detection_using_the_user_agent
+
+    // 2. In-App / Messenger Browsers (Highest Priority)
+    const matchYandex = userAgent.match(/YaBrowser\/([^\s;]+)/i);
+    if (matchYandex) return 'Yandex ' + matchYandex[1];
+
+    const matchMessenger = userAgent.match(/Messenger\/([^\s;]+)/);
+    if (matchMessenger) return 'Messenger ' + matchMessenger[1];
+
+    if (/FBAN|FBAV/i.test(userAgent)) {
+        let appName = 'Facebook';
+        const appNameMatch = userAgent.match(/FBAN\/([^\s;]+)/i);
+        if (appNameMatch) {
+            appName = 'Facebook ' + appNameMatch[1];
+        }
+
+        let appVersion = '';
+        const appVersionMatch = userAgent.match(/FBAV\/([^\s;]+)/i);
         if (appVersionMatch) {
             appVersion = appVersionMatch[1];
         }
 
-        return (appName + " " + appVersion).trim();
+        return (appName + ' ' + appVersion).trim();
     }
 
-    let matchInstagram = userAgent.match(/Instagram ([^\s;]+)/i);
-    if (matchInstagram) {
-        return "Instagram " + matchInstagram[1];
-    }
+    const matchInstagram = userAgent.match(/Instagram ([^\s;]+)/i);
+    if (matchInstagram) return 'Instagram ' + matchInstagram[1];
 
-    // @ts-ignore
-    if (typeof window.TelegramWebview !== "undefined") {
-        return "Telegram InApp Browser";
+    if (isClient && typeof (/** @type {any} */ (window).TelegramWebview) !== 'undefined') {
+        return 'Telegram InApp Browser';
     }
 
     if (/(micromessenger|weixin)/i.test(userAgent)) {
-        return "WeChat";
+        return 'WeChat';
     }
 
-    let matchSeaMonkey = userAgent.match(/SeaMonkey\/([^\s;]+)/);
-    if (matchSeaMonkey) {
-        return "SeaMonkey " + matchSeaMonkey[1];
-    }
-
-    let matchFirefox = userAgent.match(/Firefox\/([^\s;]+)/);
-    if (matchFirefox) {
-        if (!userAgent.match(/SeaMonkey\/([^\s;]+)/)) {
-            return "Firefox " + matchFirefox[1];
-        }
-    }
-
-    let matchChrome = userAgent.match(/Chrome\/([^\s;]+)/);
-    if (matchChrome) {
-        if (!userAgent.match(/(Chromium|Edg[^\/]*)\//))
-            return "Chrome " + matchChrome[1];
-    }
-
-    let matchChromium = userAgent.match(/Chromium\/([^\s;]+)/);
-    if (matchChromium) {
-        return "Chromium " + matchChromium[1];
-    }
-
-    let matchEdge = userAgent.match(/Edg[^\/]*\/([^\s;]+)/);
-    if (matchEdge) {
-        return "Edge " + matchEdge[1];
-    }
-
-    let matchSafari = userAgent.match(/Safari\/([^\s;]+)/);
-    if (matchSafari) {
-        if (
-            !(
-                userAgent.match(/Chrome\/([^\s;]+)/) ||
-                userAgent.match(/Chromium\/([^\s;]+)/)
-            )
-        ) {
-            let versionMatch = userAgent.match(/Version\/([^\s;]+)/);
-            let version = versionMatch ? versionMatch[1] : null;
-            if (version) {
-                return "Safari " + version;
-            }
-        }
-    }
+    // 3. Specialized Custom Browsers
+    const matchSeaMonkey = userAgent.match(/SeaMonkey\/([^\s;]+)/);
+    if (matchSeaMonkey) return 'SeaMonkey ' + matchSeaMonkey[1];
 
     // Opera 15+
-    let matchNewOpera = userAgent.match(/OPR\/([^\s;]+)/);
-    if (matchNewOpera) {
-        return "Opera " + matchNewOpera[1];
-    }
+    const matchNewOpera = userAgent.match(/OPR\/([^\s;]+)/);
+    if (matchNewOpera) return 'Opera ' + matchNewOpera[1];
 
     // Opera 12-14
-    let matchOldOpera = userAgent.match(/Opera\/([^\s;]+)/);
-    if (matchOldOpera) {
-        return "Opera " + matchOldOpera[1];
+    const matchOldOpera = userAgent.match(/Opera\/([^\s;]+)/);
+    if (matchOldOpera) return 'Opera ' + matchOldOpera[1];
+
+    const matchEdge = userAgent.match(/Edg[^\/]*\/([^\s;]+)/);
+    if (matchEdge) return 'Edge ' + matchEdge[1];
+
+    // 4. Base Engines (Lowest Priority - checked last to prevent false positives)
+    const matchFirefox = userAgent.match(/Firefox\/([^\s;]+)/);
+    if (matchFirefox) return 'Firefox ' + matchFirefox[1];
+
+    const matchChromium = userAgent.match(/Chromium\/([^\s;]+)/);
+    if (matchChromium) return 'Chromium ' + matchChromium[1];
+
+    const matchChrome = userAgent.match(/Chrome\/([^\s;]+)/);
+    if (matchChrome) return 'Chrome ' + matchChrome[1];
+
+    const matchSafari = userAgent.match(/Safari\/([^\s;]+)/);
+    if (matchSafari) {
+        const versionMatch = userAgent.match(/Version\/([^\s;]+)/);
+        const version = versionMatch ? versionMatch[1] : matchSafari[1];
+
+        // Await the asynchronous getOS function from os.js to differentiate mobile/desktop Safari
+        const currentOS = await getOS(userAgent);
+        if (currentOS.startsWith('iOS') || currentOS.startsWith('iPad OS')) {
+            return 'Mobile Safari ' + version;
+        }
+        return 'Safari ' + version;
     }
 
-    // MSIE detection
+    // Legacy Internet Explorer (Trident)
     if (/trident/i.test(userAgent)) {
-        let versionMatch = /\brv[ :]+(\d+)/g.exec(userAgent);
-        if (versionMatch) {
-            return "IE " + versionMatch[1];
-        }
+        const versionMatch = /\brv[ :]+(\d+)/g.exec(userAgent);
+        if (versionMatch) return 'IE ' + versionMatch[1];
 
-        let versionMatch2 = /\bMSIE\s([\d\.]+)/g.exec(userAgent);
-        if (versionMatch2) {
-            return "IE " + versionMatch2[1];
-        }
+        const versionMatch2 = /\bMSIE\s([\d\.]+)/g.exec(userAgent);
+        if (versionMatch2) return 'IE ' + versionMatch2[1];
 
-        return "IE";
+        return 'IE';
     }
 
-    return "Unknown";
+    return 'Unknown';
 }
 
 /**
- * Checks if the browser is running in a webview.
+ * Asynchronously checks if the browser is running in a webview (embedded WebView).
+ * Uses the OS detection from os.js to avoid duplication.
  *
- * @returns {boolean} True if the browser is running in a webview, false otherwise.
+ * @param {string} [userAgent=getSafeUserAgent().toLowerCase()] Optional user agent.
+ * @returns {Promise<boolean>} True if running in a webview, false otherwise.
  */
-function isWebview(
-    userAgent = window.navigator.userAgent.toLowerCase()
-) {
-    if (typeof window === undefined) {
+async function isWebview(userAgent = getSafeUserAgent().toLowerCase()) {
+    if (typeof window === 'undefined') return false;
+
+    const ua = userAgent.toLowerCase();
+    const os = await getOS(userAgent); // returns e.g. "iOS 15.4", "Android 13", "Windows 10", ...
+
+    // Android WebView detection
+    if (os.startsWith('Android')) {
+        // Typical Android WebView contains 'wv' in user agent
+        if (ua.includes('wv')) return true;
+        // Some older or custom WebViews might not have 'wv'
+        if (!ua.includes('chrome') && !ua.includes('safari')) return true;
         return false;
     }
 
-    let navigator = window.navigator;
+    // iOS WebView detection
+    if (os.startsWith('iOS') || os.startsWith('iPad OS')) {
+        // Standalone mode (home screen app) is not a webview
+        if (window.navigator.standalone) return false;
+        // WKWebView exposes message handlers
+        // @ts-ignore
+        if (window.webkit && window.webkit.messageHandlers) return true;
+        // UIWebView or older webview: check user agent patterns
+        const isSafari = /safari/.test(ua);
+        const hasVersion = /version\//.test(ua);
+        if (!isSafari || (isSafari && !hasVersion)) return true;
+        return false;
+    }
 
-    // @ts-ignore
-    const standalone = navigator.standalone;
-    const safari = /safari/.test(userAgent);
-    const ios = /iphone|ipod|ipad|macintosh/.test(userAgent);
-    const ios_ipad_webview = ios && !safari;
-
-    return ios
-        ? (!standalone && !safari) || ios_ipad_webview
-        : userAgent.includes("wv");
+    // Fallback for other operating systems (Windows, macOS, Linux, etc.)
+    return ua.includes('wv');
 }
 
 /**
- * Asynchronously checks if the browser is in incognito or private mode.
+ * Gets the human-readable name of the browser's primary language.
  *
- * @returns {Promise<boolean>} A promise that resolves to true if the browser is in incognito mode, false otherwise.
+ * @param {string} [localeName=window.navigator.language] The locale in which to return the language name.
+ *                                                        Defaults to the browser's UI language.
+ * @returns {string} Language name in the specified locale (e.g., "Russian" for locale 'en', "русский" for 'ru').
  */
-async function isIncognitoMode() {
+function getBrowserLanguage(localeName = isClient ? window.navigator.language : 'en') {
+    if (!isClient) return 'en';
+    const langFull = window.navigator.language;
+
+    let safeLocale = localeName;
+
     try {
-        let result = await detectIncognito();
-        return result.isPrivate;
-    } catch (error) {
-        console.error("Error checking incognito mode:", error);
-        return false;
+        // Validate locale – if invalid, fallback to original (will be caught)
+        safeLocale = Intl.getCanonicalLocales(localeName)[0] ?? localeName;
+    } catch {
+        // If localeName is completely invalid, keep original; will fail later
     }
-}
 
-/**
- * Gets the language of the browser in a human-readable format.
- *
- * @returns {string} The browser language, or the ISO 639-1 language code if the language is not supported.
- */
-function getBrowserLanguage() {
-    let langISO = window.navigator.language;
-    let langName = iso639_1[langISO];
-    if (langName) {
-        return langName;
-    } else {
-        return langISO;
+    try {
+        const displayNames = new Intl.DisplayNames([safeLocale], {
+            type: 'language',
+            languageDisplay: 'dialect',
+            fallback: 'code',
+        });
+        return displayNames.of(langFull) || langFull;
+    } catch (error) {
+        // Fallback for very old browsers (or if Intl.DisplayNames is unavailable)
+        console.warn('Intl.DisplayNames not supported, returning raw language code', error);
+        return langFull;
     }
 }
 
 // @ts-check
 
 
+const languageDisplayCache = new Map();
+
+/**
+ * Safely retrieves the browser's primary language code.
+ * Used as a fallback for environment-agnostic execution (SSR safely returns 'en').
+ *
+ * @returns {string} The primary language tag (e.g., 'en-US') or 'en'.
+ */
+function getSafePrimaryLanguage() {
+    return isClient && safeNavigator ? safeNavigator.language : 'en';
+}
+
 /**
  * Gets the user's current time zone.
+ * Safely handles environments where Intl or TimeZone is unavailable (e.g., legacy browsers or SSR).
  *
- * @returns {string} The user's current time zone. If the time zone could not be found, returns "Unknown".
+ * @returns {string} The resolved time zone ID (e.g., "America/New_York") or "UTC" as a fallback.
  */
 function getTimeZone() {
     try {
-        return Intl.DateTimeFormat().resolvedOptions().timeZone;
+        return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
     } catch (e) {
-        return "-";
+        // Fallback to 'UTC' instead of an uninformative dash '-' to maintain analytical clarity
+        return 'UTC';
     }
 }
 
 /**
- * Gets the languages supported by the browser.
+ * Gets the languages supported by the browser with human-readable names.
+ * No duplicate region names – Intl.DisplayNames already includes region when appropriate.
  *
- * @returns {string[]} An object containing the default language and an array of supported languages.
+ * @param {string} [displayLocale] The locale to use for displaying names.
+ * @param {readonly string[]} [fallbackLanguages] Optional array of language tags.
+ * @returns {string[]} Array of formatted language strings.
  */
-function getLanguages() {
-    let languages = {};
+function getLanguages(displayLocale, fallbackLanguages) {
+    const targetLanguages =
+        fallbackLanguages || (isClient && safeNavigator ? safeNavigator.languages : ['en']);
+    if (!targetLanguages || targetLanguages.length === 0) {
+        return [];
+    }
 
-    for (let i = 0; i < window.navigator.languages.length; i++) {
-        let langString = window.navigator.languages[i];
-        let parts = langString.split("-");
-        let langISO = parts[0];
-
-        let key = getLanguageByCode(langISO);
-
-        if (!languages[key]) {
-            languages[key] = [];
+    let safeDisplayLocale = displayLocale || getSafePrimaryLanguage();
+    try {
+        const canonicalLocales = Intl.getCanonicalLocales(safeDisplayLocale);
+        if (canonicalLocales && canonicalLocales[0]) {
+            safeDisplayLocale = canonicalLocales[0];
         }
+    } catch (e) {
+        safeDisplayLocale = getSafePrimaryLanguage();
+    }
 
-        if (parts.length > 1) {
-            for (let y = 1; y < parts.length; y++) {
-                let country = iso3166_1[parts[y]];
-                if (country) {
-                    languages[key].push(country);
-                }
-            }
+    // Get or create cached Intl.DisplayNames for language (region is handled internally)
+    let langDisplay = languageDisplayCache.get(safeDisplayLocale);
+    if (!langDisplay) {
+        try {
+            langDisplay = new Intl.DisplayNames([safeDisplayLocale], {
+                type: 'language',
+                languageDisplay: 'dialect',
+                fallback: 'code',
+            });
+            languageDisplayCache.set(safeDisplayLocale, langDisplay);
+        } catch (error) {
+            console.warn('Intl.DisplayNames not supported. Returning raw tags.', error);
+            // Return unique raw tags
+            const seen = new Set();
+            return targetLanguages.filter(tag => {
+                const norm = tag.toLowerCase();
+                if (seen.has(norm)) return false;
+                seen.add(norm);
+                return true;
+            });
         }
     }
 
-    let result = [];
-    for (let key in languages) {
-        if (languages[key].length > 0) {
-            let countries = languages[key].join(", ");
-            result.push(`${key} (${countries})`);
-        } else {
-            result.push(key);
-        }
-    }
+    const seen = new Set();
+    const result = [];
 
+    for (const langTag of targetLanguages) {
+        const normalized = langTag.toLowerCase();
+        if (seen.has(normalized)) continue;
+        seen.add(normalized);
+
+        let formatted;
+        try {
+            // Intl.DisplayNames already returns "Russian (Russia)" for ru-RU, etc.
+            formatted = langDisplay.of(langTag) || langTag;
+        } catch (e) {
+            formatted = langTag;
+        }
+        result.push(formatted);
+    }
     return result;
 }
 
-export { getAndroidDeviceNameFromUserAgent, getBrowser, getBrowserLanguage, getCountryByCode, getDeviceModel, getDeviceType, getIosDeviceName, getLanguageByCode, getLanguages, getOS, getTimeZone, isIPad, isIPhone, isIncognitoMode, isMac, isMobile, isPointerDevice, isSensorDevice, isWebview, isWindows11 };
+// @ts-check
+
+
+/**
+ * Asynchronously gets the Android device marketing name or model.
+ *
+ * @param {string} [userAgent=getSafeUserAgent()] The user agent string.
+ * @returns {Promise<string>} A promise that resolves to the device brand/model, or an empty string.
+ */
+async function getAndroidDeviceName(userAgent = getSafeUserAgent()) {
+    // 1. Modern High-Entropy Client Hints check (The most accurate way for modern Chromium)
+    const userAgentData = getSafeUserAgentData();
+    if (userAgentData && typeof userAgentData.getHighEntropyValues === 'function') {
+        try {
+            // 'model' gives the exact device model (e.g., "SM-S911B" or "Pixel 7")
+            const data = await userAgentData.getHighEntropyValues(['model']);
+            if (data && data.model) {
+                return data.model.trim();
+            }
+        } catch (e) {
+            // Fail silently and fall back to User-Agent parsing
+        }
+    }
+
+    if (!userAgent || !/Android/i.test(userAgent)) {
+        return '';
+    }
+
+    // 2. Fallback: Precise User-Agent token isolation
+    // In Android UA strings, the device model is always located right before the "Build/" token
+    // or directly before the closing parenthesis of the Linux platform component.
+    // Example: "Android 13; SM-S911B)" or "Android 12; ru-ru; Redmi Note 11 Build/..."
+    const modelMatch = userAgent.match(/Android\s[^;)]+;\s([^;)]+?)(?:\sBuild|\))/i);
+
+    if (modelMatch && modelMatch[1]) {
+        const fullModel = modelMatch[1].trim();
+
+        // Optional: If you only want the FIRST word (e.g., "SAMSUNG" or "Redmi"), keep your split logic:
+        // return fullModel.split(' ')[0];
+
+        // Recommendation: Return the full model name token for better analytical precision (e.g., "SM-G998B")
+        return fullModel;
+    }
+
+    return 'Android Device';
+}
+
+// @ts-check
+
+
+// Optimized Apple device logical resolution mapping (using standard CSS points, orientation-agnostic)
+const APPLE_LOGICAL_MAPPING = new Map([
+    // iPhones (Short side x Long side)
+    ['320x480', 'iPhone 4/4s, 3GS'],
+    ['320x568', 'iPhone 5, 5c, 5s, SE (1st gen)'],
+    ['375x667', 'iPhone 6, 6s, 7, 8, SE (2nd/3rd gen)'],
+    ['414x736', 'iPhone 6 Plus, 6s Plus, 7 Plus, 8 Plus'],
+    ['375x812', 'iPhone X, XS, 11 Pro, 12 mini, 13 mini'],
+    ['390x844', 'iPhone 12, 12 Pro, 13, 13 Pro, 14'],
+    ['393x852', 'iPhone 14 Pro, 15, 15 Pro, 16'],
+    ['428x926', 'iPhone 12 Pro Max, 13 Pro Max, 14 Plus'],
+    ['430x932', 'iPhone 14 Pro Max, 15 Plus, 15 Pro Max, 16 Plus'],
+    ['402x874', 'iPhone 16 Pro'],
+    ['440x956', 'iPhone 16 Pro Max'],
+
+    // iPads (Short side x Long side)
+    ['744x1133', 'iPad Mini (6th gen)'],
+    ['768x1024', 'iPad Mini (1-5), iPad (1-6), iPad Air 1/2, iPad Pro 9.7"'],
+    ['810x1080', 'iPad (7th-9th gen)'],
+    ['820x1180', 'iPad Air (4th/5th gen), iPad (10th gen)'],
+    ['834x1112', 'iPad Air (3rd gen), iPad Pro 10.5"'],
+    ['834x1194', 'iPad Pro 11" (3rd-5th gen)'],
+    ['1024x1366', 'iPad Pro 12.9"'],
+]);
+
+/**
+ * Determines if the current device is an iPhone or iPod.
+ *
+ * @param {string} [userAgent=getSafeUserAgent()] The user agent string.
+ * @returns {boolean} True if an iPhone is detected, false otherwise.
+ */
+function isIPhone(userAgent = getSafeUserAgent()) {
+    if (!userAgent) return false;
+    return /iPhone|iPod/i.test(userAgent);
+}
+
+/**
+ * Determines if the current device is an iPad.
+ *
+ * @param {string} [userAgent=getSafeUserAgent()] The user agent string.
+ * @returns {boolean} True if an iPad is detected, false otherwise.
+ */
+function isIPad(userAgent = getSafeUserAgent()) {
+    if (!userAgent) return false;
+    if (isIPhone(userAgent)) return false;
+
+    const uaLower = userAgent.toLowerCase();
+
+    // 1. Classic User-Agent check
+    if (uaLower.indexOf('ipad') > -1) return true;
+
+    // 2. Modern iPadOS check (iPadOS 13+ masking as Macintosh but having multi-touch capabilities)
+    if (uaLower.indexOf('macintosh') > -1 && safeNavigator) {
+        // Checking for touch support alongside touch points ensures high accuracy
+        const hasTouchSupport =
+            'ontouchstart' in (isClient ? window : {}) || safeNavigator.maxTouchPoints > 0;
+        if (hasTouchSupport && safeNavigator.maxTouchPoints > 2) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Determines if the current device is a desktop Apple computer (Mac).
+ *
+ * @param {string} [userAgent=getSafeUserAgent()] The user agent string.
+ * @returns {boolean} True if a Mac is detected, false otherwise.
+ */
+function isMac(userAgent = getSafeUserAgent()) {
+    if (!userAgent) return false;
+    if (!/macintosh/i.test(userAgent)) return false;
+
+    // If it has a Mac UA but features touch points > 2, it's actually an iPad
+    return !isIPad(userAgent);
+}
+
+/**
+ * Asynchronously gets the localized or family name of the Apple device.
+ *
+ * @param {string} [userAgent=getSafeUserAgent()] The user agent string.
+ * @returns {Promise<string>} A promise that resolves to the Apple device name, or an empty string.
+ */
+async function getAppleDeviceModel(userAgent = getSafeUserAgent()) {
+    if (!userAgent) return '';
+
+    // 1. Filter out non-Apple devices immediately
+    if (!/iphone|ipad|macintosh/i.test(userAgent)) return '';
+
+    // 2. High-priority: Client Hints check for future Safari compatibility
+    const userAgentData = getSafeUserAgentData();
+    if (userAgentData && typeof userAgentData.getHighEntropyValues === 'function') {
+        try {
+            // Apple Client Hints format: model could return "iPhone15,2"
+            // We use standard Promise handling inside our architecture façade
+            const hints = await userAgentData.getHighEntropyValues(['model']);
+            if (hints && hints.model) {
+                return hints.model;
+            }
+        } catch (e) {
+            // Fail silently and proceed to resolution mapping
+        }
+    }
+
+    return fallbackResolutionMapping(userAgent);
+}
+
+/**
+ * Fallback helper to extract the device name using logical screen resolution.
+ *
+ * @param {string} userAgent
+ * @returns {string}
+ */
+function fallbackResolutionMapping(userAgent) {
+    if (!isClient || typeof window.screen === 'undefined') {
+        return isMac(userAgent) ? 'Macintosh' : 'Apple Device';
+    }
+
+    const { width, height } = window.screen;
+    if (!width || !height) return '';
+
+    // Normalizing orientation: always use the smaller side as width to ensure key consistency
+    const shortSide = Math.min(width, height);
+    const longSide = Math.max(width, height);
+    const resolutionKey = `${shortSide}x${longSide}`;
+
+    const matchedModel = APPLE_LOGICAL_MAPPING.get(resolutionKey);
+    if (matchedModel) return matchedModel;
+
+    // Generic fallbacks if resolution isn't explicitly mapped yet
+    if (isIPhone(userAgent)) return 'iPhone';
+    if (isIPad(userAgent)) return 'iPad';
+    if (isMac(userAgent)) return 'Macintosh';
+
+    return 'Apple Device';
+}
+
+// @ts-check
+
+
+/**
+ * Determines if the device is a mobile phone (excludes desktop and tablets).
+ *
+ * @param {string} [userAgent=getSafeUserAgent()] The user agent string.
+ * @returns {boolean} True if a mobile phone is detected, false otherwise.
+ */
+function isMobile(userAgent = getSafeUserAgent()) {
+    // 1. High-priority check via modern User-Agent Client Hints
+    const userAgentData = getSafeUserAgentData();
+    if (userAgentData && typeof userAgentData.mobile !== 'undefined') {
+        // Note: Client Hints set 'mobile' to true for both phones AND tablets.
+        // To strictly get only PHONES, we ensure it's mobile but NOT a tablet.
+        if (userAgentData.mobile) {
+            return !isTablet(userAgent);
+        }
+        return false;
+    }
+
+    if (!userAgent) return false;
+
+    // 2. Fallback via traditional User-Agent parsing for phones
+    // We check for 'Mobi' but strictly exclude 'Tablet' patterns to avoid false positives
+    if (/Mobi/i.test(userAgent) && !/Tablet|iPad/i.test(userAgent)) {
+        return true;
+    }
+
+    // Specific legacy or custom mobile platform tokens
+    return /iPhone|iPod|Windows Phone|IEMobile|BlackBerry|webOS|uZard|Opera Mini/i.test(userAgent);
+}
+
+/**
+ * Determines if the device is a tablet.
+ *
+ * @param {string} [userAgent=getSafeUserAgent()] The user agent string.
+ * @returns {boolean} True if a tablet is detected, false otherwise.
+ */
+function isTablet(userAgent = getSafeUserAgent()) {
+    if (!userAgent) return false;
+
+    // 1. Check traditional tablet user agents
+    if (/Tablet|iPad/i.test(userAgent)) {
+        return true;
+    }
+
+    // Android without 'Mobile' token is traditionally an Android Tablet
+    if (/Android/i.test(userAgent) && !/Mobile/i.test(userAgent)) {
+        return true;
+    }
+
+    // 2. Modern iPadOS check (iPadOS 13+ devices masking as Macintosh but having multi-touch screen)
+    if (/Macintosh/i.test(userAgent) && safeNavigator) {
+        if ('maxTouchPoints' in safeNavigator && safeNavigator.maxTouchPoints > 1) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Determines if the device is either a mobile phone or a tablet.
+ *
+ * @param {string} [userAgent=getSafeUserAgent()] The user agent string.
+ * @returns {boolean} True if mobile or tablet, false otherwise.
+ */
+function isMobileOrTablet(userAgent = getSafeUserAgent()) {
+    return isMobile(userAgent) || isTablet(userAgent);
+}
+
+// @ts-check
+
+
+/**
+ * Asynchronously determines the specific device model name (e.g., "iPhone 14 Pro" or "SM-S911B").
+ * Compatible with both modern Client Hints and traditional User-Agent parsing.
+ *
+ * @param {string} [userAgent=getSafeUserAgent()] The user agent string to parse.
+ * @returns {Promise<string>} A promise that resolves to the device model name, 'Desktop', or 'Unknown'.
+ */
+async function getDeviceModel(userAgent = getSafeUserAgent()) {
+    // If the User-Agent is completely missing or empty, return 'Unknown' immediately
+    // to distinguish it from parsed but unrecognized devices.
+    if (!userAgent) {
+        return 'Unknown';
+    }
+
+    // 1. Optimize execution path for Apple ecosystem (iPhone, iPad, Mac)
+    if (/iphone|ipad|macintosh/i.test(userAgent)) {
+        const appleDevice = await getAppleDeviceModel(userAgent);
+        if (appleDevice) return appleDevice;
+    }
+
+    // 2. Optimize execution path for Android ecosystem
+    if (/android/i.test(userAgent)) {
+        const androidDevice = await getAndroidDeviceName(userAgent);
+        if (androidDevice) return androidDevice;
+    }
+
+    // 3. Fallback logic for rare or legacy mobile operating systems
+    if (isMobileOrTablet(userAgent)) {
+        // Isolate specific tokens for platforms like Windows Phone, BlackBerry, etc.
+        const genericMatch = userAgent.match(
+            /\b(Windows Phone|BlackBerry|webOS|uZard|Opera Mini)\b/i
+        );
+        if (genericMatch) return genericMatch[1];
+
+        return 'Generic Mobile/Tablet';
+    }
+
+    // 4. Default fallback: If it's a valid UA but no mobile/tablet flags were triggered,
+    // it's a standard non-Apple desktop computer.
+    return 'Desktop';
+}
+
+// @ts-check
+
+
+/**
+ * Helper to split full string (e.g., "Chrome 122.0.0.0") into name and version components.
+ * * @param {string} fullString
+ * @returns {{ name: string, version: string }}
+ */
+function parseNameAndVersion(fullString) {
+    if (!fullString) {
+        return { name: 'Unknown', version: 'Unknown' };
+    }
+
+    // Example: "Mobile Safari 17.4" => name = "Mobile Safari", version = "17.4"
+    const match = fullString.match(/^([\w\s]+?)\s+([\d\.]+)$/);
+    if (match) {
+        return {
+            name: match[1].trim(),
+            version: match[2],
+        };
+    }
+
+    // Fallback: first space separates name and version (works for simple cases)
+    const firstSpaceIndex = fullString.indexOf(' ');
+    if (firstSpaceIndex === -1) {
+        return { name: fullString, version: 'Unknown' };
+    }
+
+    return {
+        name: fullString.substring(0, firstSpaceIndex).trim(),
+        version: fullString.substring(firstSpaceIndex + 1).trim(),
+    };
+}
+
+/**
+ * Asynchronously harvests comprehensive environment, browser, device, and locale metrics.
+ * Fully safe for SSR (Server-Side Rendering) and performance-optimized.
+ *
+ * @param {string} [displayLocale] Optional BCP 47 language tag to translate country and language names (e.g., "ru", "en").
+ * @param {string} [customUserAgent] Optional User-Agent string override (highly useful for SSR / backend execution).
+ * @returns {Promise<import('./types.js').EnvironmentInfo>} A promise that resolves to the unified structured environment report.
+ */
+async function getEnvironment(displayLocale, customUserAgent) {
+    // 1. Resolve the User-Agent context
+    const ua = customUserAgent || getSafeUserAgent();
+
+    // 2. Determine device type synchronously based on the User-Agent tokens
+    /** @type {"desktop" | "tablet" | "mobile"} */
+    let deviceType = 'desktop';
+    if (isTablet(ua)) {
+        deviceType = 'tablet';
+    } else if (isMobile(ua)) {
+        deviceType = 'mobile';
+    }
+
+    // 3. Get device model
+    const deviceModel = await getDeviceModel(ua);
+
+    // 4. Extract browser and OS full strings, then safely parse them
+    const fullBrowser = await getBrowser(ua); // E.g., "Chrome 122.0.0.0"
+    const fullOS = await getOS(ua); // E.g., "Windows 11"
+
+    const browserInfo = parseNameAndVersion(fullBrowser);
+    const osInfo = parseNameAndVersion(fullOS);
+
+    const timeZone = getTimeZone();
+    const languages = getLanguages(displayLocale);
+
+    // 5. Assemble and return the final clean analytical structured report
+    return {
+        browser: {
+            name: browserInfo.name,
+            version: browserInfo.version,
+        },
+        os: {
+            name: osInfo.name,
+            version: osInfo.version,
+        },
+        device: {
+            model: deviceModel,
+            type: deviceType,
+        },
+        locale: {
+            timeZone: timeZone,
+            languages: languages,
+        },
+    };
+}
+
+// @ts-check
+
+
+/**
+ * Determines if the device is a sensor device with coarse pointing capabilities (touchscreen).
+ * * @returns {boolean} True if the device has a touchscreen, false otherwise.
+ */
+function isSensorDevice() {
+    let hasTouchScreen = false;
+
+    // 1. Primary check via modern standard Navigator API
+    if (safeNavigator && 'maxTouchPoints' in safeNavigator) {
+        hasTouchScreen = safeNavigator.maxTouchPoints > 0;
+    }
+    // 2. Legacy Microsoft pointer check
+    else if (safeNavigator && 'msMaxTouchPoints' in safeNavigator) {
+        // @ts-ignore
+        hasTouchScreen = safeNavigator.msMaxTouchPoints > 0;
+    }
+    // 3. Client-side fallbacks (Media Queries & User-Agent)
+    else if (isClient) {
+        // Safe check for matchMedia availability in window
+        if (typeof window.matchMedia === 'function') {
+            const mQ = window.matchMedia('(pointer:coarse)');
+            if (mQ && mQ.matches) {
+                hasTouchScreen = true;
+            }
+        }
+
+        // Final fallback to User-Agent parsing if Media Queries are inconclusive
+        if (!hasTouchScreen) {
+            const userAgent = getSafeUserAgent();
+            hasTouchScreen =
+                /\b(BlackBerry|webOS|iPhone|IEMobile|Mobile)\b/i.test(userAgent) ||
+                /\b(Android|Windows Phone|iPad|iPod)\b/i.test(userAgent);
+        }
+    }
+
+    return hasTouchScreen;
+}
+
+/**
+ * Determines if the device is a pointer device with fine pointing capabilities (mouse/stylus).
+ * * @returns {boolean} True if a fine pointer is detected, false otherwise.
+ */
+function isPointerDevice() {
+    if (!isClient || typeof window.matchMedia !== 'function') {
+        return false;
+    }
+
+    try {
+        return window.matchMedia('(pointer:fine)').matches;
+    } catch (e) {
+        console.error('Error executing pointer:fine media query:', e);
+        return false;
+    }
+}
+
+// @ts-check
+
+/**
+ * Gets the device type based on capabilities and User-Agent.
+ *
+ * @param {string} [userAgent=getSafeUserAgent()] The user agent string.
+ * @returns {'tablet'|'mobile'|'desktop'} The detected device type.
+ */
+function getDeviceType(userAgent = getSafeUserAgent()) {
+    // 1. Tablet check MUST go first.
+    // Modern iPadOS and Android tablets are highly specific and harder to isolate.
+    if (isTablet(userAgent)) {
+        return 'tablet';
+    }
+
+    // 2. Mobile check goes second.
+    // Since tablets are already filtered out, any positive mobile flag guarantees a smartphone.
+    if (isMobile(userAgent)) {
+        return 'mobile';
+    }
+
+    // 3. Fallback to desktop if no mobile/tablet markers were found.
+    return 'desktop';
+}
+
+export { getAndroidDeviceName, getAppleDeviceModel, getBrowser, getBrowserLanguage, getCountryName, getDeviceModel, getDeviceType, getEnvironment, getLanguages, getOS, getTimeZone, isIPad, isIPhone, isMac, isMobile, isPointerDevice, isSensorDevice, isWebview, isWindows11 };

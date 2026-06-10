@@ -1,27 +1,20 @@
 // @ts-check
 
-export { getOS, isWindows11 } from "./os.js";
-export { getCountryByCode } from "./countries.js";
-export { getLanguageByCode } from "./languages.js";
+export { getOS, isWindows11 } from './os.js';
+export { getCountryName } from './countries.js';
+export { getBrowser, getBrowserLanguage, isWebview } from './browser.js';
+export { getLanguages, getTimeZone } from './locale-info.js';
+export { getEnvironment } from './environment.js';
 
 export {
     isMobile,
-    getAndroidDeviceNameFromUserAgent,
+    getAppleDeviceModel,
     getDeviceModel,
-    getIosDeviceName,
+    getAndroidDeviceName,
     isIPad,
     isIPhone,
     isMac,
     isPointerDevice,
     isSensorDevice,
     getDeviceType,
-} from "./device.js";
-
-export {
-    getBrowser,
-    getBrowserLanguage,
-    isIncognitoMode,
-    isWebview,
-} from "./browser.js";
-
-export { getLanguages, getTimeZone } from "./locale_info.js";
+} from './device/index.js';

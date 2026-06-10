@@ -1,411 +1,165 @@
-# **device-detect**
+# device-detect
 
-## **Overview**
+**A modern, SSR‑ready JavaScript library for detecting browser, device, OS, locale, and privacy features.**
 
-This library, `device-detect`, provides a comprehensive set of functions to determine various aspects of a user's device and environment. It can identify device types such as mobile, tablet, or desktop, and provides specific information about the device model, operating system, and browser. Additionally, it can detect the presence of touchscreens, pointer devices, and whether the browser is in incognito mode. This makes it a versatile tool for developers who need to tailor their applications based on the user's device and browser capabilities.
+[![npm version](https://img.shields.io/npm/v/@supercat1337/device-detect)](https://www.npmjs.com/package/@supercat1337/device-detect)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## **Features**
+---
 
-Here are the features of this library:
+## Overview
 
-**Device Detection**
+`device-detect` gives you reliable information about your user’s environment using a combination of **User‑Agent parsing**, **Client Hints**, and **modern browser APIs**. It works in the browser and is safe for **server‑side rendering (SSR)**.
 
--   Detects whether the device is a mobile device, tablet, or desktop computer
--   Identifies the device type (e.g. iPhone, iPad, Android device)
--   Determines whether the device has a touchscreen or pointer device (e.g. mouse, trackpad)
+Key capabilities:
 
-**Browser Detection**
+- **Device**: model name (e.g., "iPhone 14 Pro", "SM‑S911B"), type (mobile/tablet/desktop), touch/pointer support.
+- **OS**: name and version (Windows 11, macOS 14, Android 13, iOS 17…).
+- **Browser**: name, version, webview detection (Instagram, Facebook, Telegram, etc.).
+- **Locale**: time zone, list of preferred languages with human‑readable names.
+- **Async & Sync APIs**: most detection functions are asynchronous (use `await`) for accuracy, some are synchronous.
 
--   Detects the browser type (e.g. Chrome, Firefox, Safari)
--   Identifies the browser version
--   Determines whether the browser is running in incognito mode
+---
 
-**Operating System Detection**
+## Live Demo
 
--   Detects the operating system (e.g. Windows, macOS, Linux)
--   Identifies the operating system version
--   Determines whether the operating system is Windows 11
+[See it in action →](https://supercat1337.github.io/device-detect/example/index.html)
 
-**Language and Time Zone Detection**
+---
 
--   Detects the user's language preferences
--   Identifies the user's time zone
+## Installation
 
-**User Agent Parsing**
+```bash
+npm install @supercat1337/device-detect
+```
 
--   Parses the user agent string to extract device and browser information
--   Provides a convenient API for accessing device and browser properties
+---
 
-**Utility Functions**
+## Quick Start
 
--   Provides utility functions for working with user agent strings and device detection
--   Includes functions for detecting specific devices, browsers, and operating systems
+The easiest way to get all information at once is `getEnvironment()`:
 
-**ESM Support**
+```javascript
+import { getEnvironment } from '@supercat1337/device-detect';
 
--   Supports ES6 modules (ESM) for easy integration with modern web applications
+async function showEnvironment() {
+    const env = await getEnvironment();
+    console.log(env);
+    /*
+    {
+      browser: { name: "Chrome", version: "122.0.0.0" },
+      os: { name: "Windows", version: "11" },
+      device: { model: "Desktop", type: "desktop" },
+      locale: {
+        timeZone: "Europe/London",
+        languages: ["English", "Russian (Russia)"]
+      }
+    }
+    */
+}
+```
 
-## **Live Demo**
-
-Check out the [live demo](https://supercat1337.github.io/device-detect/example/index.html) to see `device-detect` in action!
-
-## **Usage**
+You can also use individual functions:
 
 ```javascript
 import {
-    getAndroidDeviceNameFromUserAgent,
     getBrowser,
-    getDeviceModel,
-    getIosDeviceName,
-    getLanguages,
     getOS,
-    getTimeZone,
-    isIPad,
-    isIPhone,
-    isMac,
-    isIncognitoMode,
+    getDeviceModel,
     isMobile,
-    isPointerDevice,
-    isSensorDevice,
-    isWebview,
-    isWindows11,
-    getDeviceType,
-} from "@supercat1337/device-detect";
+    getTimeZone,
+    getLanguages,
+} from '@supercat1337/device-detect';
 
-async function main() {
-    console.log("User Agent", window.navigator.userAgent);
-
-    console.log("Device Type", getDeviceType());
-    console.log("Android Device Name", getAndroidDeviceNameFromUserAgent());
-    console.log("Browser", getBrowser());
-    console.log("Device Model", await getDeviceModel());
-    console.log("Ios Device Name", getIosDeviceName());
-    console.log("Languages", JSON.stringify(getLanguages()));
-    console.log("OS", await getOS());
-    console.log("Time Zone", getTimeZone());
-    console.log("Incognito Mode", await isIncognitoMode());
-    console.log("Mobile", isMobile());
-    console.log("Pointer Device", isPointerDevice());
-    console.log("Sensor Device", isSensorDevice());
-    console.log("Webview", isWebview());
-    console.log("Windows 11", await isWindows11());
-    console.log("IPad", isIPad());
-    console.log("IPhone", isIPhone());
-    console.log("Mac", isMac());
+async function example() {
+    const browser = await getBrowser(); // "Chrome 122.0.0.0"
+    const os = await getOS(); // "Windows 11"
+    const model = await getDeviceModel(); // "SM-S911B" or "iPhone 14 Pro"
+    const mobile = isMobile(); // true/false (synchronous)
+    const tz = getTimeZone(); // "America/New_York"
+    const langs = getLanguages(); // ["English", "French (France)"]
 }
-
-await main();
 ```
 
-# **API Documentation**
+---
 
-Here is the API documentation for the exported functions:
+## API Reference
 
-## **getAndroidDeviceNameFromUserAgent**
+### Main function
 
-### Description
+#### `getEnvironment(displayLocale?, customUserAgent?): Promise<EnvironmentInfo>`
 
-Gets the device name from the user agent string.
+Returns a structured object with all detected information.
 
-### Parameters
+- `displayLocale` – optional BCP47 tag (e.g. `"ru"`) to localise language/country names.
+- `customUserAgent` – override User‑Agent string (useful for SSR).
 
--   `userAgent` (string): The user agent string. Defaults to `window.navigator.userAgent`.
+```typescript
+interface EnvironmentInfo {
+    browser: { name: string; version: string };
+    os: { name: string; version: string };
+    device: { model: string; type: 'desktop' | 'tablet' | 'mobile' };
+    locale: { timeZone: string; languages: string[] };
+}
+```
 
-### Returns
+### Individual functions (asynchronous)
 
--   `string`: The device name, or an empty string if it could not be determined.
+| Function                     | Returns            | Description                                            |
+| ---------------------------- | ------------------ | ------------------------------------------------------ |
+| `getBrowser(userAgent?)`     | `Promise<string>`  | Browser name + version (e.g., `"Chrome 122"`)          |
+| `getOS(userAgent?)`          | `Promise<string>`  | OS name + version (e.g., `"Windows 11"`, `"iOS 17.4"`) |
+| `getDeviceModel(userAgent?)` | `Promise<string>`  | Specific device model or `"Desktop"` / `"Unknown"`     |
+| `isWebview(userAgent?)`      | `Promise<boolean>` | Running inside a webview (Instagram, Telegram, etc.)   |
+| `isWindows11()`              | `Promise<boolean>` | Windows 11 detection using Client Hints                |
 
-## **getBrowser**
+### Synchronous functions
 
-### Description
+| Function                                           | Returns                             | Description                                                            |
+| -------------------------------------------------- | ----------------------------------- | ---------------------------------------------------------------------- |
+| `getDeviceType(userAgent?)`                        | `"desktop" \| "tablet" \| "mobile"` | Device category                                                        |
+| `isMobile(userAgent?)`                             | `boolean`                           | Mobile phone (excluding tablets)                                       |
+| `isTablet(userAgent?)`                             | `boolean`                           | Tablet detection                                                       |
+| `isIPhone(userAgent?)`                             | `boolean`                           | iPhone or iPod                                                         |
+| `isIPad(userAgent?)`                               | `boolean`                           | iPad (including modern iPads masking as Mac)                           |
+| `isMac(userAgent?)`                                | `boolean`                           | Apple desktop computer                                                 |
+| `isPointerDevice()`                                | `boolean`                           | Fine pointer (mouse/stylus) available                                  |
+| `isSensorDevice()`                                 | `boolean`                           | Touchscreen available                                                  |
+| `getTimeZone()`                                    | `string`                            | IANA time zone (e.g., `"Europe/Moscow"`)                               |
+| `getLanguages(displayLocale?, fallbackLanguages?)` | `string[]`                          | Human‑readable language list (e.g., `["English", "Russian (Russia)"]`) |
+| `getBrowserLanguage(localeName?)`                  | `string`                            | Browser’s primary language name (e.g., `"English"`)                    |
+| `getAndroidDeviceName(userAgent?)`                 | `Promise<string>`                   | Android marketing name (e.g., `"SM-S911B"`)                            |
+| `getAppleDeviceModel(userAgent?)`                  | `Promise<string>`                   | Apple device model (e.g., `"iPhone 15 Pro"`)                           |
 
-Gets the browser name and version.
+> **Note:** `getCountryName` is not included in `getEnvironment` – use it separately if needed.
 
-### Parameters
+---
 
--   `userAgent` (string): The user agent string. Defaults to `window.navigator.userAgent`.
+## SSR (Server‑Side Rendering)
 
-### Returns
-
--   `string`: The browser name and version, or "Unknown" if it could not be determined.
-
-### Example
+All functions gracefully handle environments without `window` or `navigator`.  
+When used on the server, they return safe default values (e.g., `"Unknown"`, `false`, `"UTC"`).  
+For accurate results, pass a `customUserAgent` string (from your server request) to the relevant functions.
 
 ```javascript
-const browser = getBrowser();
-console.log(browser); // e.g. "Chrome 90.0.4430.212"
+// Next.js / Nuxt example
+const ua = req.headers['user-agent'];
+const env = await getEnvironment(undefined, ua);
 ```
 
-## **getDeviceModel**
+---
 
-### Description
+## Browser Support
 
-Asynchronously determines the device model name.
+Works in all modern browsers (Chrome, Firefox, Safari, Edge, Opera).  
+Some advanced features require newer APIs:
 
-### Returns
+- **Client Hints** – Chromium‑based browsers, Safari (partial), Firefox (planned).
+- **Intl.DisplayNames** – required for human‑readable language names (polyfill available for very old browsers).
 
--   `Promise<string>`: A promise that resolves to the device model name, or "-" if it could not be determined.
+Legacy Internet Explorer is **not supported**.
 
-### Example
-
-```javascript
-getDeviceModel().then((deviceModel) => {
-    console.log(deviceModel); // e.g. "iPhone 13 Pro"
-});
-```
-
-## **getDeviceType**
-
-### Description
-
-Gets the device type (Tablet, Mobile, Desktop) of the current device.
-
-### Returns
-
--   `string`: The device type (e.g. "Tablet", "Mobile", "Desktop").
-
-### Example
-
-```javascript
-const deviceType = getDeviceType();
-console.log(deviceType); // e.g. "Mobile"
-```
-
-# **getIosDeviceName**
-
-### Description
-
-Gets the device name from the screen resolution.
-
-### Returns
-
--   `string`: The device name, or an empty string if it could not be determined.
-
-### Example
-
-```javascript
-const deviceName = getIosDeviceName();
-console.log(deviceName); // e.g. "iPhone 12 Pro"
-```
-
-## **getLanguages**
-
-### Description
-
-Gets the languages supported by the browser.
-
-### Returns
-
--   `string[]`: Gets the languages supported by the browser.
-
-### Example
-
-```javascript
-const languages = getLanguages();
-console.log(languages); // e.g. ["English (United States of America)", "Russian (Russian Federation)"]
-```
-
-## **getOS**
-
-### Description
-
-Async function that gets the operating system and version.
-
-### Returns
-
--   `Promise<string>`: The operating system and version.
-
-### Example
-
-```javascript
-const os = await getOS();
-console.log(os); // e.g. "Windows 10"
-```
-
-## **getTimeZone**
-
-### Description
-
-Gets the user's current time zone.
-
-### Returns
-
--   `string`: The user's current time zone, or "Unknown" if it could not be determined.
-
-### Example
-
-```javascript
-const timeZone = getTimeZone();
-console.log(timeZone); // e.g. "America/New_York"
-```
-
-## **isIncognitoMode**
-
-### Description
-
-Asynchronously checks if the browser is in incognito mode.
-
-### Returns
-
--   `Promise<boolean>`: A promise that resolves to `true` if the browser is in incognito mode, `false` otherwise.
-
-### Example
-
-```javascript
-isIncognitoMode().then((isIncognito) => {
-    console.log(isIncognito); // e.g. true
-});
-```
-
-## **isMac**
-
-### Description
-
-Determines if the current device is a Mac.
-
-### Returns
-
--   `boolean`: `true` if the device is a Mac, `false` otherwise.
-
-### Example
-
-```javascript
-const isAppleDesktop = isMac();
-console.log(isAppleDesktop); // e.g. true
-```
-
-## **isIPad**
-
-### Description
-
-Determines if the current device is an iPad.
-
-### Returns
-
--   `boolean`: `true` if the device is an iPad, `false` otherwise.
-
-### Example
-
-```javascript
-const is_IPad = isIPad();
-console.log(is_IPad); // e.g. true
-```
-
-## **isIPhone**
-
-### Description
-
-Determines if the current device is an iPhone.
-
-### Returns
-
--   `boolean`: `true` if the device is an iPhone, `false` otherwise.
-
-### Example
-
-```javascript
-const is_IPhone = isIPhone();
-console.log(is_IPhone); // e.g. true
-```
-
-## **isMobile**
-
-### Description
-
-Checks if the browser is running on a mobile device.
-
-### Returns
-
--   `boolean`: `true` if the browser is running on a mobile device, `false` otherwise.
-
-### Example
-
-```javascript
-const isMobile = isMobile();
-console.log(isMobile); // e.g. true
-```
-
-## **isPointerDevice**
-
-### Description
-
-Determines if the device is a pointer device with fine pointing capabilities.
-
-### Returns
-
--   `boolean`: `true` if the device is a pointer device, `false` otherwise.
-
-### Example
-
-```javascript
-console.log(isPointerDevice()); // e.g. true
-```
-
-## **isSensorDevice**
-
-### Description
-
-Determines if the device is a sensor device.
-
-### Returns
-
--   `boolean`: `true` if the device is a sensor device, `false` otherwise.
-
-### Example
-
-```javascript
-console.log(isSensorDevice()); // e.g. true
-```
-
-## **isWebview**
-
-### Description
-
-Checks if the browser is running in a webview.
-
-### Returns
-
--   `boolean`: `true` if the browser is running in a webview, `false` otherwise.
-
-### Example
-
-```javascript
-console.log(isWebview()); // e.g. true
-```
-
-## **isWindows11**
-
-### Description
-
-Asynchronously checks if the operating system is Windows 11.
-
-### Returns
-
--   `Promise<boolean>`: A promise that resolves to `true` if the operating system is Windows 11, `false` otherwise.
-
-### Example
-
-```javascript
-isWindows11().then((isWin11) => {
-    console.log(isWin11); // e.g. true
-});
-```
-
-## **getBrowserLanguage**
-
-### Description
-
-Gets the language of the browser.
-
-### Returns
-
--   `string`: Returns the language of the browser.
-
-### Example
-
-```javascript
-console.log(getBrowserLanguage()); // e.g. "English"
-```
+---
 
 ## License
 

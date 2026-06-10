@@ -1,54 +1,51 @@
 // @ts-check
 
-// parser for https://yesviz.com/iphones.php
-function parseIphoneViewportData(tbody) {
-    let rows = tbody.querySelectorAll("tr");
-    let data = {};
-    for (let i = 0; i < rows.length; i++) {
-        let row = rows[i];
-        let cells = row.querySelectorAll("td");
-        let resolution = cells[1].textContent.trim().replace(/\s/g, "");
-        let device = cells[0].textContent
-            .trim()
-            .replace(/Apple\s+Iphone\s+/i, "");
-        if (!data[resolution]) {
-            data[resolution] = "iPhone " + device;
-        } else {
-            data[resolution] += ", " + device;
-        }
-    }
+/**
+ * Check if the code is executing in a client (browser) environment.
+ * @type {boolean}
+ */
+export const isClient = typeof window !== 'undefined';
 
-    let result = [];
-    for (let key in data) {
-        result.push([key, data[key]]);
-    }
-    return result;
+/**
+ * Safe access to the navigator object.
+ * @type {Navigator | null}
+ */
+export const safeNavigator = isClient ? window.navigator : null;
+
+/**
+ * Safely retrieves the User Agent string.
+ * @returns {string} The user agent string or an empty string if not in browser.
+ */
+export function getSafeUserAgent() {
+    return safeNavigator ? safeNavigator.userAgent : '';
 }
 
-// parser for https://www.peeayecreative.com/docs/divi-responsive-helper/popular-device-viewport-sizes/
-function parseIpadViewportData(tbody) {
-    let rows = tbody.querySelectorAll("tr");
-    let data = {};
-    for (let i = 0; i < rows.length; i++) {
-        let row = rows[i];
-        let cells = row.querySelectorAll("td");
-        let resolution = (
-            cells[1].textContent.trim() +
-            "x" +
-            cells[2].textContent.trim()
-        ).replace(/\s/g, "");
-        let device = cells[0].textContent.trim();
-        //.replace(/Apple\s+Ipad\s+/i, "");
-        if (!data[resolution]) {
-            data[resolution] = "iPad " + device;
-        } else {
-            data[resolution] += ", " + device;
-        }
+/**
+ * Safely retrieves the NavigatorUAData object (User-Agent Client Hints).
+ * @returns {import("./types.js").NavigatorUAData | null} The userAgentData object or null if not supported/available.
+ */
+export function getSafeUserAgentData() {
+    if (!safeNavigator) return null;
+
+    // @ts-ignore - userAgentData is not standard in all browser typings yet
+    return safeNavigator.userAgentData || null;
+}
+
+/**
+ * Safely requests high-entropy values from User-Agent Client Hints.
+ * @param {string[]} hints - Array of hint names to request (e.g., ['model', 'platformVersion']).
+ * @returns {Promise<import("./types.js").UADataValues | null>} A promise that resolves to the values or null if unsupported.
+ */
+export async function getHighEntropyValues(hints) {
+    const uaData = getSafeUserAgentData();
+    if (!uaData || typeof uaData.getHighEntropyValues !== 'function') {
+        return null;
     }
 
-    let result = [];
-    for (let key in data) {
-        result.push([key, data[key]]);
+    try {
+        return await uaData.getHighEntropyValues(hints);
+    } catch (error) {
+        // Fallback if the promise is rejected or permission is denied
+        return null;
     }
-    return result;
 }

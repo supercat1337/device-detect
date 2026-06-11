@@ -135,10 +135,12 @@ async function getOS(userAgent = getSafeUserAgent()) {
     }
 
     if (os === 'iOS') {
-        // Updated regular expression to capture both 2-digit (17.5) and 3-digit (17.4.1) versions properly
-        const matchVersion = userAgent.match(/OS\s([0-9]+)[_.](([0-9]+)(?:[_.][0-9]+)?)/);
+        // Support versions like 17.2.1 (three components)
+        const matchVersion = userAgent.match(/OS (\d+)[_.](\d+)(?:[_.](\d+))?/);
         if (matchVersion) {
-            os += ' ' + matchVersion[1] + '.' + matchVersion[2].replace(/_/g, '.');
+            let version = `${matchVersion[1]}.${matchVersion[2]}`;
+            if (matchVersion[3]) version += `.${matchVersion[3]}`;
+            os += ' ' + version;
         }
         return os;
     }
@@ -621,9 +623,13 @@ async function getAndroidDeviceName(userAgent = getSafeUserAgent()) {
 // @ts-check
 
 
-// Optimized Apple device logical resolution mapping (using standard CSS points, orientation-agnostic)
+/**
+ * Map of logical resolutions (shortSide x longSide) to device name(s).
+ * For Apple devices, these are standard non-zoomed resolutions.
+ * Some resolutions match multiple models – we list them comma-separated.
+ */
 const APPLE_LOGICAL_MAPPING = new Map([
-    // iPhones (Short side x Long side)
+    // iPhones
     ['320x480', 'iPhone 4/4s, 3GS'],
     ['320x568', 'iPhone 5, 5c, 5s, SE (1st gen)'],
     ['375x667', 'iPhone 6, 6s, 7, 8, SE (2nd/3rd gen)'],
@@ -633,10 +639,9 @@ const APPLE_LOGICAL_MAPPING = new Map([
     ['393x852', 'iPhone 14 Pro, 15, 15 Pro, 16'],
     ['428x926', 'iPhone 12 Pro Max, 13 Pro Max, 14 Plus'],
     ['430x932', 'iPhone 14 Pro Max, 15 Plus, 15 Pro Max, 16 Plus'],
-    ['402x874', 'iPhone 16 Pro'],
+    ['402x874', 'iPhone 16 Pro, iPhone 17'], // iPhone 17 added here
     ['440x956', 'iPhone 16 Pro Max'],
-
-    // iPads (Short side x Long side)
+    // iPads
     ['744x1133', 'iPad Mini (6th gen)'],
     ['768x1024', 'iPad Mini (1-5), iPad (1-6), iPad Air 1/2, iPad Pro 9.7"'],
     ['810x1080', 'iPad (7th-9th gen)'],
@@ -647,38 +652,64 @@ const APPLE_LOGICAL_MAPPING = new Map([
 ]);
 
 /**
+ * Map of known zoomed logical resolutions to the base device description.
+ * When Display Zoom is enabled, the logical resolution is reduced.
+ * This map helps identify the original device family.
+ */
+const ZOOMED_MAPPING = new Map([
+    ['320x568', 'iPhone 6/7/8 (Zoomed) or iPhone 5/SE'], // base 375x667 or 320x568
+    ['375x812', 'iPhone X/XS/11 Pro (Zoomed) or 12/13/14 mini'], // base 390x844 or 375x812
+    ['393x852', 'iPhone 14 Pro (Zoomed)'], // base 402x874
+    // Add more as needed
+]);
+
+/**
+ * Map of Apple internal model codes (from Client Hints) to marketing names.
+ * Useful when getHighEntropyValues returns 'model' like "iPhone15,2".
+ */
+const APPLE_MODEL_CODE_MAP = new Map([
+    ['iPhone15,2', 'iPhone 15 Pro Max'],
+    ['iPhone15,3', 'iPhone 15 Pro'],
+    ['iPhone15,4', 'iPhone 15 Plus'],
+    ['iPhone15,5', 'iPhone 15'],
+    ['iPhone16,1', 'iPhone 16 Pro'],
+    ['iPhone16,2', 'iPhone 16 Pro Max'],
+    ['iPhone16,3', 'iPhone 16'],
+    ['iPhone16,4', 'iPhone 16 Plus'],
+    ['iPhone17,1', 'iPhone 17'],
+    ['iPhone17,2', 'iPhone 17 Pro'],
+    // Future codes can be added here (e.g., iPhone17,x)
+]);
+
+/**
  * Determines if the current device is an iPhone or iPod.
+ * Handles both standard User-Agent and "Request Desktop Website" mode (where UA is Macintosh).
  *
  * @param {string} [userAgent=getSafeUserAgent()] The user agent string.
- * @returns {boolean} True if an iPhone is detected, false otherwise.
+ * @returns {boolean} True if an iPhone/iPod is detected, false otherwise.
  */
 function isIPhone(userAgent = getSafeUserAgent()) {
     if (!userAgent) return false;
-    return /iPhone|iPod/i.test(userAgent);
-}
 
-/**
- * Determines if the current device is an iPad.
- *
- * @param {string} [userAgent=getSafeUserAgent()] The user agent string.
- * @returns {boolean} True if an iPad is detected, false otherwise.
- */
-function isIPad(userAgent = getSafeUserAgent()) {
-    if (!userAgent) return false;
-    if (isIPhone(userAgent)) return false;
+    // 1. Standard iPhone/iPod User-Agent detection
+    if (/\b(iPhone|iPod)\b/i.test(userAgent)) {
+        return true;
+    }
 
-    const uaLower = userAgent.toLowerCase();
+    // 2. Fallback for iPhone in "Request Desktop Website" mode (UA = Macintosh)
+    if (isClient && safeNavigator) {
+        const isMacEnvironment =
+            safeNavigator.platform === 'MacIntel' || /\bMacintosh\b/i.test(userAgent);
+        const hasTouch = safeNavigator.maxTouchPoints > 0;
 
-    // 1. Classic User-Agent check
-    if (uaLower.indexOf('ipad') > -1) return true;
+        if (isMacEnvironment && hasTouch && window.screen) {
+            const minScreenDimension = Math.min(window.screen.width, window.screen.height);
 
-    // 2. Modern iPadOS check (iPadOS 13+ masking as Macintosh but having multi-touch capabilities)
-    if (uaLower.indexOf('macintosh') > -1 && safeNavigator) {
-        // Checking for touch support alongside touch points ensures high accuracy
-        const hasTouchSupport =
-            'ontouchstart' in (isClient ? window : {}) || safeNavigator.maxTouchPoints > 0;
-        if (hasTouchSupport && safeNavigator.maxTouchPoints > 2) {
-            return true;
+            // Threshold 550 cleanly separates iPhones (max width ~440) from iPads (min width ~744)
+            // This prevents iPad in desktop mode from being misidentified as iPhone.
+            if (minScreenDimension < 550) {
+                return true;
+            }
         }
     }
 
@@ -686,8 +717,30 @@ function isIPad(userAgent = getSafeUserAgent()) {
 }
 
 /**
+ * Determines if the current device is an iPad.
+ * @param {string} [userAgent=getSafeUserAgent()]
+ * @returns {boolean}
+ */
+function isIPad(userAgent = getSafeUserAgent()) {
+    if (!userAgent) return false;
+    if (isIPhone(userAgent)) return false;
+
+    const uaLower = userAgent.toLowerCase();
+    if (uaLower.indexOf('ipad') > -1) return true;
+
+    // Modern iPadOS (13+) masquerades as Macintosh
+    if (uaLower.indexOf('macintosh') > -1 && safeNavigator) {
+        const hasTouchSupport =
+            'ontouchstart' in (isClient ? window : {}) || safeNavigator.maxTouchPoints > 0;
+        if (hasTouchSupport && safeNavigator.maxTouchPoints > 2) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * Determines if the current device is a desktop Apple computer (Mac).
- *
  * @param {string} [userAgent=getSafeUserAgent()] The user agent string.
  * @returns {boolean} True if a Mac is detected, false otherwise.
  */
@@ -700,38 +753,41 @@ function isMac(userAgent = getSafeUserAgent()) {
 }
 
 /**
- * Asynchronously gets the localized or family name of the Apple device.
- *
- * @param {string} [userAgent=getSafeUserAgent()] The user agent string.
- * @returns {Promise<string>} A promise that resolves to the Apple device name, or an empty string.
+ * Asynchronously gets the marketing name of the Apple device.
+ * Uses Client Hints (model code) first, then falls back to resolution mapping.
+ * @param {string} [userAgent=getSafeUserAgent()]
+ * @returns {Promise<string>}
  */
 async function getAppleDeviceModel(userAgent = getSafeUserAgent()) {
     if (!userAgent) return '';
-
-    // 1. Filter out non-Apple devices immediately
     if (!/iphone|ipad|macintosh/i.test(userAgent)) return '';
 
-    // 2. High-priority: Client Hints check for future Safari compatibility
+    // 1. Modern Client Hints (most reliable)
     const userAgentData = getSafeUserAgentData();
     if (userAgentData && typeof userAgentData.getHighEntropyValues === 'function') {
         try {
-            // Apple Client Hints format: model could return "iPhone15,2"
-            // We use standard Promise handling inside our architecture façade
             const hints = await userAgentData.getHighEntropyValues(['model']);
             if (hints && hints.model) {
-                return hints.model;
+                const modelCode = hints.model;
+                let model = APPLE_MODEL_CODE_MAP.get(modelCode);
+                if (model) {
+                    return model;
+                }
+                // Unknown model code – return as is or attempt fallback
+                return modelCode;
             }
         } catch (e) {
-            // Fail silently and proceed to resolution mapping
+            // Fail silently, fallback to resolution mapping
         }
     }
 
+    // 2. Fallback to resolution-based detection (handles zoom and legacy devices)
     return fallbackResolutionMapping(userAgent);
 }
 
 /**
- * Fallback helper to extract the device name using logical screen resolution.
- *
+ * Fallback resolution-based model detection (used when Client Hints unavailable).
+ * Handles zoomed states and unknown future models gracefully.
  * @param {string} userAgent
  * @returns {string}
  */
@@ -740,22 +796,32 @@ function fallbackResolutionMapping(userAgent) {
         return isMac(userAgent) ? 'Macintosh' : 'Apple Device';
     }
 
-    const { width, height } = window.screen;
+    let { width, height } = window.screen;
     if (!width || !height) return '';
 
-    // Normalizing orientation: always use the smaller side as width to ensure key consistency
     const shortSide = Math.min(width, height);
     const longSide = Math.max(width, height);
     const resolutionKey = `${shortSide}x${longSide}`;
 
-    const matchedModel = APPLE_LOGICAL_MAPPING.get(resolutionKey);
-    if (matchedModel) return matchedModel;
+    // 1. Check standard (non-zoomed) mapping
+    if (APPLE_LOGICAL_MAPPING.has(resolutionKey)) {
+        let matched = /** @type {string} */ (APPLE_LOGICAL_MAPPING.get(resolutionKey));
+        // For ambiguous resolution shared by multiple models, return a generic descriptor
+        if (matched === 'iPhone 16 Pro, iPhone 17') {
+            return 'iPhone 16 Pro or newer';
+        }
+        return matched;
+    }
 
-    // Generic fallbacks if resolution isn't explicitly mapped yet
+    // 2. Check zoomed mapping
+    if (ZOOMED_MAPPING.has(resolutionKey)) {
+        return /** @type {string} */ (ZOOMED_MAPPING.get(resolutionKey));
+    }
+
+    // 3. Generic fallbacks
     if (isIPhone(userAgent)) return 'iPhone';
     if (isIPad(userAgent)) return 'iPad';
     if (isMac(userAgent)) return 'Macintosh';
-
     return 'Apple Device';
 }
 

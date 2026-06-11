@@ -89,10 +89,12 @@ export async function getOS(userAgent = getSafeUserAgent()) {
     }
 
     if (os === 'iOS') {
-        // Updated regular expression to capture both 2-digit (17.5) and 3-digit (17.4.1) versions properly
-        const matchVersion = userAgent.match(/OS\s([0-9]+)[_.](([0-9]+)(?:[_.][0-9]+)?)/);
+        // Support versions like 17.2.1 (three components)
+        const matchVersion = userAgent.match(/OS (\d+)[_.](\d+)(?:[_.](\d+))?/);
         if (matchVersion) {
-            os += ' ' + matchVersion[1] + '.' + matchVersion[2].replace(/_/g, '.');
+            let version = `${matchVersion[1]}.${matchVersion[2]}`;
+            if (matchVersion[3]) version += `.${matchVersion[3]}`;
+            os += ' ' + version;
         }
         return os;
     }

@@ -230,30 +230,29 @@ export function getAndroidDeviceName(userAgent?: string): Promise<string>;
 /* From device\apple.d.ts */
 /**
  * Determines if the current device is an iPhone or iPod.
+ * Handles both standard User-Agent and "Request Desktop Website" mode (where UA is Macintosh).
  *
  * @param {string} [userAgent=getSafeUserAgent()] The user agent string.
- * @returns {boolean} True if an iPhone is detected, false otherwise.
+ * @returns {boolean} True if an iPhone/iPod is detected, false otherwise.
  */
 export function isIPhone(userAgent?: string): boolean;
 /**
  * Determines if the current device is an iPad.
- *
- * @param {string} [userAgent=getSafeUserAgent()] The user agent string.
- * @returns {boolean} True if an iPad is detected, false otherwise.
+ * @param {string} [userAgent=getSafeUserAgent()]
+ * @returns {boolean}
  */
 export function isIPad(userAgent?: string): boolean;
 /**
  * Determines if the current device is a desktop Apple computer (Mac).
- *
  * @param {string} [userAgent=getSafeUserAgent()] The user agent string.
  * @returns {boolean} True if a Mac is detected, false otherwise.
  */
 export function isMac(userAgent?: string): boolean;
 /**
- * Asynchronously gets the localized or family name of the Apple device.
- *
- * @param {string} [userAgent=getSafeUserAgent()] The user agent string.
- * @returns {Promise<string>} A promise that resolves to the Apple device name, or an empty string.
+ * Asynchronously gets the marketing name of the Apple device.
+ * Uses Client Hints (model code) first, then falls back to resolution mapping.
+ * @param {string} [userAgent=getSafeUserAgent()]
+ * @returns {Promise<string>}
  */
 export function getAppleDeviceModel(userAgent?: string): Promise<string>;
 
